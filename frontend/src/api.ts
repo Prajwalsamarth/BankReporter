@@ -88,7 +88,65 @@ export interface RunDetail {
 }
 
 export interface CatalogSection { id: string; label: string }
-export interface Catalog { sections: CatalogSection[] }
+export interface Catalog { sections: CatalogSection[]; fields: CatalogField[] }
 export interface ColumnInfo extends ColumnRef { type: string }
 export interface Preview { columns: string[]; rows: unknown[][] }
 export interface Published { ddl: string; row_count: number; schema: string }
+
+export function errorText(err: unknown): string {
+  if (err instanceof ApiError) {
+    const d = err.detail as { blockers?: string[]; error?: string; errors?: { block_id: string | null; messages: string[] }[] }
+      | string | (string | { msg?: string })[];
+    if (typeof d === "string") return d;
+    if (Array.isArray(d)) return d.map((x) => (typeof x === "string" ? x : x.msg ?? JSON.stringify(x))).join("; ");
+    if (d?.blockers) return `Cannot publish: ${d.blockers.join("; ")}`;
+    if (d?.errors) return d.errors.map((e) => e.messages.join("; ")).join(" · ");
+    if (d?.error) return d.error;
+  }
+  return String(err);
+}
+
+export interface Val { raw: number | string | boolean | null; display: string }
+export interface Delta { raw: number; display: string; direction: "up" | "down" | "flat"; good: boolean | null }
+export interface Kpi {
+  key: string; label: string; unit: string; value: Val; previous: Val; delta: Delta | null;
+  sparkline?: { month: string; raw: number | null }[];
+}
+export interface ColumnMeta { key: string; label: string; kind: "dimension" | "measure"; unit?: string }
+export type BlockType = "heading" | "text" | "kpi_row" | "kpi" | "table" | "chart" | "page_break";
+export type ChartType = "bar" | "stacked_bar" | "line" | "area" | "pie";
+export interface BlockResult {
+  id: string; type: BlockType; error?: string; text?: string; level?: number; title?: string | null;
+  items?: Kpi[]; kpi?: Kpi; columns?: ColumnMeta[]; rows?: Record<string, Val>[];
+  totals?: Record<string, Val> | null; empty?: boolean; chart?: ChartType;
+}
+export interface Rendered {
+  client: { id: number; name: string };
+  period: { start: string; end: string; prev_start: string; prev_end: string; label: string };
+  generated_at: string;
+  blocks: BlockResult[];
+}
+export type Agg = "count" | "count_distinct" | "sum" | "avg" | "min" | "max";
+export interface Measure { metric?: string; field?: string; agg?: Agg; label?: string | null }
+export type Filter = [string, string, unknown?];
+export interface QuerySpec {
+  measures: Measure[]; group_by: string[]; filters: Filter[];
+  sort?: { by: string; dir: "asc" | "desc" } | null; limit?: number | null;
+}
+export interface Block {
+  id: string; type: BlockType; text?: string; level?: number; title?: string | null;
+  items?: { measure: Measure; label?: string | null }[]; measure?: Measure; label?: string | null;
+  filters?: Filter[]; sparkline?: boolean; query?: QuerySpec; totals?: boolean; chart?: ChartType;
+}
+export interface Tile { id: string; block: Block; width: 3 | 4 | 6 | 8 | 12; height: "s" | "m" | "l" }
+export interface PeriodSpec { preset: string; start?: string; end?: string }
+export interface ReportSummary { id: number; name: string; description: string; updated_at: string }
+export interface ReportTemplate extends ReportSummary { blocks: Block[] }
+export interface DashboardSummary { id: number; name: string; default_period: PeriodSpec; updated_at: string }
+export interface Dashboard extends DashboardSummary { tiles: Tile[] }
+export interface Metric { id: string; label: string; unit: string; better: string; group: string; description: string }
+export interface PublishedConnection { id: number; name: string; dialect: string; published_at: string }
+export interface CatalogField {
+  id: string; label: string; section: string; kind: string; type: string; role: string;
+  values: string[] | null; unit: string | null;
+}

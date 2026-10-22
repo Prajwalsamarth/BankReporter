@@ -1,0 +1,15 @@
+/* frontend/src/print.css */
+.report-paper { max-width: 210mm; margin: 0 auto; padding: 14mm; background: var(--mantine-color-body);
+                border: 1px solid var(--mantine-color-gray-3); }
+.report-block { margin-bottom: 18px; }
+
+@media print {
+  @page { size: A4; margin: 15mm; }
+  .no-print { display: none !important; }
+  .mantine-AppShell-main { padding: 0 !important; }
+  .report-paper { border: none; padding: 0; max-width: none; }
+  .report-block { break-inside: avoid; }
+  .page-break { break-before: page; }
+  .screen-only { display: none !important; }
+  .recharts-responsive-container { width: 170mm !important; }
+}

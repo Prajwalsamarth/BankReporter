@@ -3,24 +3,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 import {
-  ApiError, api, type Catalog, type ColumnInfo, type ColumnRef, type Connection, type Entry, type JoinPlan,
+  ApiError, api, errorText, type Catalog, type ColumnInfo, type ColumnRef, type Connection, type Entry, type JoinPlan,
   type Preview, type Published, type RunDetail,
 } from "../api";
 import { FieldTable, type FieldActions } from "../components/FieldTable";
 import { JoinPlanCard } from "../components/JoinPlanCard";
 
 const statusColor = { running: "blue", ready: "teal", failed: "red", published: "violet" } as const;
-
-function errorText(err: unknown): string {
-  if (err instanceof ApiError) {
-    const d = err.detail as { blockers?: string[]; error?: string } | string | (string | { msg?: string })[];
-    if (typeof d === "string") return d;
-    if (Array.isArray(d)) return d.map((x) => (typeof x === "string" ? x : x.msg ?? JSON.stringify(x))).join("; ");
-    if (d?.blockers) return `Cannot publish: ${d.blockers.join("; ")}`;
-    if (d?.error) return d.error;
-  }
-  return String(err);
-}
 
 function counts(entries: Entry[]) {
   const mapped = entries.filter((e) => e.source && e.status !== "not_available");

@@ -10,12 +10,16 @@
     "typecheck": "tsc -b --noEmit"
   },
   "dependencies": {
+    "@mantine/charts": "7.17.8",
     "@mantine/core": "7.17.8",
+    "@mantine/dates": "7.17.8",
     "@mantine/hooks": "7.17.8",
     "@tanstack/react-query": "5.104.5",
+    "dayjs": "1.11.13",
     "react": "18.3.1",
     "react-dom": "18.3.1",
-    "react-router-dom": "6.28.0"
+    "react-router-dom": "6.28.0",
+    "recharts": "2.15.4"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "6.6.3",
