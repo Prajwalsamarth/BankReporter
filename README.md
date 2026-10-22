@@ -6,7 +6,7 @@ An internal proof of concept: a reporting tool for retail personal-loan applicat
 |---|---|---|
 | 1. Field catalog, formula compiler, mock client DBs | done | `docs/superpowers/specs/2026-10-22-catalog-and-mock-data-design.md` |
 | 2. Data mapping (matcher, views, API, UI, evaluation) | done | `docs/superpowers/specs/2026-10-22-data-mapping-design.md` |
-| 3. Reporting & dashboards | not started | — |
+| 3. Reporting & dashboards | done | `docs/superpowers/specs/2026-10-22-reporting-dashboards-design.md` |
 
 ## Setup
 
@@ -45,6 +45,20 @@ Walkthrough:
 3. Review the field table. Use the **Needs review** and **Unmapped** filters, ✓ to accept, ▾ for other columns, and ⊘ for "not available".
 4. **Confirm join plan**, then **Preview**, then **Publish**.
 5. Check the result: `SELECT COUNT(*) FROM lending_rpt.applications;` should return the same row count on both clients.
+
+## Reports and dashboards
+
+Reports and dashboards are available once at least one client is published.
+
+- **Reports:**
+  - Choose a template, a client and a period to see the report.
+  - **Download PDF** opens the browser's print dialog; choose "Save as PDF". Pages are A4.
+  - **New template** (or **Edit template**) opens the block editor: add blocks on the left, configure them on the right, and watch the live preview in the middle.
+- **Dashboards:**
+  - Choose a dashboard, a client and a period.
+  - **Edit** lets you add tiles, change their width and height, reorder them, and open a tile's settings. **Save** keeps the changes; **Save as…** creates a copy.
+- **Ready-made content:** a "Monthly Lending MIS" template and a "Lending KPIs" dashboard are recreated at startup if they are missing.
+- **KPIs:** defined in `catalog/metrics.yaml` as aggregate formulas, for example `approved / decided * 100`. Add a metric there and restart the API to use it in blocks.
 
 ## Mock data
 
