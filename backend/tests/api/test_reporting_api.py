@@ -2,20 +2,18 @@
 from datetime import date
 
 import pytest
-from fastapi.testclient import TestClient
 from sqlalchemy import text
 
 from app.api import create_app
-from app.mapping.matcher.embed import Embedder
-from tests.api.conftest import PUBLISH_SCHEMA, client1_body, keyword_encoder
+from tests.api.conftest import PUBLISH_SCHEMA, client1_body, make_app, signed_in
 
 TODAY = date(2026, 10, 22)
 
 
 @pytest.fixture
-def rapi(settings):
-    app = create_app(settings, embedder=Embedder(encode=keyword_encoder), today=lambda: TODAY)
-    with TestClient(app) as client:
+def rapi(settings, clock):
+    app = make_app(settings, clock, today=lambda: TODAY)
+    with signed_in(app) as client:
         yield client
 
 

@@ -21,6 +21,10 @@ class Settings(BaseSettings):
     b_margin: float = Field(0.05, validation_alias="MAPPER_B_MARGIN")
     publish_schema: str = Field("lending_rpt", validation_alias="BANKREPORTER_PUBLISH_SCHEMA")
     profile_row_limit: int = Field(50_000, validation_alias="MAPPER_PROFILE_ROW_LIMIT")
+    session_hours: int = Field(12, validation_alias="BANKREPORTER_SESSION_HOURS")
+    cookie_secure: bool = Field(False, validation_alias="BANKREPORTER_COOKIE_SECURE")
+    login_max_failures: int = Field(5, validation_alias="BANKREPORTER_LOGIN_MAX_FAILURES")
+    login_lock_minutes: int = Field(5, validation_alias="BANKREPORTER_LOGIN_LOCK_MINUTES")
 
     @property
     def db_url(self) -> str:

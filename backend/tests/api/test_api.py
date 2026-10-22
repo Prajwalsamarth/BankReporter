@@ -3,7 +3,7 @@ from cryptography.fernet import Fernet
 
 from app.api import create_app
 from app.settings import Settings
-from tests.api.conftest import client1_body
+from tests.api.conftest import ADMIN, client1_body, login
 
 
 def test_refuses_to_start_without_secret_key(tmp_path):
@@ -54,6 +54,7 @@ def test_connection_with_unreadable_url_needs_password(api, settings, tmp_path):
     other = Settings(BANKREPORTER_SECRET_KEY=Fernet.generate_key().decode(), BANKREPORTER_DB=settings.db_path)
     from fastapi.testclient import TestClient
     with TestClient(create_app(other)) as c2:
+        login(c2, ADMIN)
         conn = c2.get("/api/connections").json()[0]
         assert conn["needs_password"] is True and conn["url_masked"] is None
         assert c2.put(f"/api/connections/{cid}", json=client1_body(password=None)).status_code == 409
