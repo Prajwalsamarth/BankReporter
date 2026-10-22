@@ -128,3 +128,136 @@ def referenced_fields(tree: ast.Expression) -> set[str]:
         n.id for n in ast.walk(tree)
         if isinstance(n, ast.Name) and id(n) not in func_names
     }
+
+
+_NUMERIC = {"integer", "decimal"}
+
+
+def infer_type(tree: ast.Expression, field_types: dict[str, str]) -> str:
+    """Result type of a parsed formula: string|integer|decimal|date|boolean|null.
+
+    Enum fields count as string.
+    """
+    return _infer(tree.body, field_types)
+
+
+def _infer(node: ast.AST, types: dict[str, str]) -> str:
+    match node:
+        case ast.Name(id=name):
+            t = types[name]
+            return "string" if t == "enum" else t
+        case ast.Constant(value=value):
+            if value is None:
+                return "null"
+            if isinstance(value, bool):
+                return "boolean"
+            if isinstance(value, int):
+                return "integer"
+            if isinstance(value, float):
+                return "decimal"
+            return "string"
+        case ast.BinOp(left=left, op=op, right=right):
+            lt, rt = _numeric(left, types), _numeric(right, types)
+            if isinstance(op, ast.Div):
+                return "decimal"
+            return _unify_numeric([lt, rt])
+        case ast.UnaryOp(op=ast.Not()):
+            _infer(node.operand, types)
+            return "boolean"
+        case ast.UnaryOp(operand=operand):
+            return _numeric(operand, types)
+        case ast.BoolOp(values=values):
+            for v in values:
+                _infer(v, types)
+            return "boolean"
+        case ast.Compare():
+            _infer(node.left, types)
+            for c in node.comparators:
+                if not isinstance(c, ast.List):
+                    _infer(c, types)
+            return "boolean"
+        case ast.Call():
+            return _infer_call(node, types)
+    raise FormulaError(f"{type(node).__name__} not allowed", _col(node))
+
+
+def _numeric(node: ast.AST, types: dict[str, str]) -> str:
+    t = _infer(node, types)
+    if t not in _NUMERIC and t != "null":
+        raise FormulaError(f"arithmetic needs numeric operands, got {t}", _col(node))
+    return t
+
+
+def _unify_numeric(ts: list[str]) -> str:
+    if "decimal" in ts:
+        return "decimal"
+    if "integer" in ts:
+        return "integer"
+    return "null"
+
+
+def _first_non_null(ts: list[str]) -> str:
+    return next((t for t in ts if t != "null"), "null")
+
+
+def _infer_call(node: ast.Call, types: dict[str, str]) -> str:
+    name = node.func.id
+    args = node.args
+    if name in ("DATE_DIFF_DAYS", "YEARS_BETWEEN", "MONTH_START"):
+        for a in args:
+            if _infer(a, types) not in ("date", "null"):
+                raise FormulaError(f"{name} needs date arguments", _col(a))
+        return "date" if name == "MONTH_START" else "integer"
+    if name == "ROUND":
+        _numeric(args[0], types)
+        return "decimal"
+    if name == "ABS":
+        return _numeric(args[0], types)
+    if name in ("LEAST", "GREATEST"):
+        return _unify_numeric([_numeric(a, types) for a in args])
+    if name == "NULLIF":
+        _infer(args[1], types)
+        return _infer(args[0], types)
+    if name == "COALESCE":
+        return _first_non_null([_infer(a, types) for a in args])
+    if name == "IF":
+        _infer(args[0], types)
+        return _first_non_null([_infer(a, types) for a in args[1:]])
+    if name == "CASE":
+        conds, results = _case_parts(args)
+        for c in conds:
+            _infer(c, types)
+        return _first_non_null([_infer(r, types) for r in results])
+    raise FormulaError(f"unknown function '{name}'", _col(node))
+
+
+def _case_parts(args: list[ast.AST]) -> tuple[list[ast.AST], list[ast.AST]]:
+    """CASE(c1, v1, c2, v2, ..., else) -> ([c1, c2, ...], [v1, v2, ..., else])."""
+    return args[0:-1:2], args[1:-1:2] + [args[-1]]
+
+
+def is_type_compatible(inferred: str, declared: str) -> bool:
+    if inferred == "null" or inferred == declared:
+        return True
+    return (inferred, declared) in {("integer", "decimal"), ("string", "enum")}
+
+
+def result_literals(tree: ast.Expression) -> set[str]:
+    """String constants that can be the formula's result (for enum value checks)."""
+    out: set[str] = set()
+
+    def visit(node: ast.AST) -> None:
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            out.add(node.value)
+        elif isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+            if node.func.id == "IF":
+                results = node.args[1:]
+            elif node.func.id == "CASE":
+                results = _case_parts(node.args)[1]
+            else:
+                return
+            for r in results:
+                visit(r)
+
+    visit(tree.body)
+    return out
