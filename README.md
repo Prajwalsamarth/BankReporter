@@ -8,6 +8,18 @@ An internal proof of concept: a reporting tool for retail personal-loan applicat
 | 2. Data mapping (matcher, views, API, UI, evaluation) | done | `docs/superpowers/specs/2026-10-22-data-mapping-design.md` |
 | 3. Reporting & dashboards | done | `docs/superpowers/specs/2026-10-22-reporting-dashboards-design.md` |
 
+## Sample logins
+
+Open **http://localhost:5173** and sign in. The users are created by `python -m app.auth.seed` (see [Sign in](#sign-in)).
+
+| Username | Password | Sees |
+|---|---|---|
+| `admin` | `admin123` | every client; switch with the **Client** menu in the header |
+| `nova.analyst` | `nova123` | NovaBank only |
+| `bharat.analyst` | `bharat123` | Bharat Finserv only |
+
+These are sample passwords for a proof of concept; don't reuse them anywhere real.
+
 ## Setup
 
 Requires Python 3.12, Node 18 or later, and Docker.
@@ -53,7 +65,7 @@ Create the sample clients and users once. Run this from `backend/`; it's safe to
 | `nova.analyst` | `nova123` | NovaBank only |
 | `bharat.analyst` | `bharat123` | Bharat Finserv only |
 
-These are sample passwords for a proof of concept.
+These are sample passwords for a proof of concept. The seed sets a password only when it creates a user; it never changes an existing user's password.
 
 - **Shared and private items:**
   - Shared templates and dashboards are visible to every client, but a client user can only **Save as copy**.
