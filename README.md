@@ -39,8 +39,30 @@ MAPPER_LLM_MODEL=gpt-4.1-mini # optional
 (cd frontend && npm run dev)                                    # UI on http://localhost:5173
 ```
 
+### Sign in
+
+Create the sample clients and users once. Run this from `backend/`; it's safe to repeat:
+
+```bash
+../.venv/bin/python -m app.auth.seed      # --admin-password / --client-password to choose your own
+```
+
+| User | Password | Sees |
+|---|---|---|
+| `admin` | `admin123` | every client: pick one in the header's **Client** menu; creates connections and shared templates |
+| `nova.analyst` | `nova123` | NovaBank only |
+| `bharat.analyst` | `bharat123` | Bharat Finserv only |
+
+These are sample passwords for a proof of concept.
+
+- **Shared and private items:**
+  - Shared templates and dashboards are visible to every client, but a client user can only **Save as copy**.
+  - Private ones are visible only to their own client.
+- **Existing connections:** the seed attaches the "NovaBank" and "Bharat Finserv" connections to their clients by name.
+- **Sessions and lockout:** sessions last 12 hours (`BANKREPORTER_SESSION_HOURS`). Five wrong passwords lock an account for 5 minutes.
+
 Walkthrough:
-1. **Connections:** add NovaBank (postgresql, localhost:5433, database/user/password `novabank`, schema `los`) and Bharat Finserv (mysql, localhost:3307, database `bfs_core`, user/password `bfs`, schema `bfs_core`). Press **Test** on each.
+1. **Sign in** as `admin`. **Connections:** add NovaBank (postgresql, localhost:5433, database/user/password `novabank`, schema `los`) and Bharat Finserv (mysql, localhost:3307, database `bfs_core`, user/password `bfs`, schema `bfs_core`). Choose each connection's client, then press **Test** on each.
 2. **Open mapping**, then **Run mapping**.
 3. Review the field table. Use the **Needs review** and **Unmapped** filters, ✓ to accept, ▾ for other columns, and ⊘ for "not available".
 4. **Confirm join plan**, then **Preview**, then **Publish**.
@@ -115,6 +137,7 @@ Tests whose requirements aren't met are skipped. The writer tests reuse the defa
   - introspection, profiling and the join planner;
   - `matcher/`: Layer A rules, Layer B embeddings, Layer C OpenAI, and the assignment step;
   - view generation, publishing, and the evaluation tool.
+- `backend/app/auth/`: passwords, sessions, the seed command and the visibility rules.
 - `backend/app/api/`: the FastAPI app (`app.main:app`). `backend/app/store/` is the app's SQLite file (`data/bankreporter.sqlite`), which holds metadata only.
 - `frontend/`: Vite + React + Mantine, with the Connections and Mapping pages.
 - `mockdata/`: the synthetic data generator, the client DDL and the per-client writers.
