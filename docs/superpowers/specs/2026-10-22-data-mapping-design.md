@@ -137,7 +137,7 @@ The distinct values themselves are used only to compute `enum_overlap` and boole
 ### 4.1 Join plan first (`joins/`)
 
 1. **Choose the grain.** Candidates are tables with a single-column PK. Each candidate's score is the sum of:
-   - **3 ×** the number of other tables linked to it. A table counts as linked if it has a declared FK to the candidate, or a unique column whose normalised name equals the candidate's PK name;
+   - **3 ×** the number of other tables linked to it by a declared FK, plus **1 ×** the number linked only by a unique column whose normalised name equals the candidate's PK name. Same-name links are weighted lower because every one-to-one child table shares the grain's key name, so it links to every other child too;
    - **2 ×** `row_count / max_row_count`;
    - **1 ×** `key_scorer(pk_column, "application_id")`, which is Layer A's score, else Layer B's cosine.
 

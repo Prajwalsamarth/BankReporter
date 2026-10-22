@@ -15,8 +15,17 @@ def plan_joins(info: SchemaInfo, profiles: list[ColumnProfile],
     max_rows = max(t.row_count for t in candidates) or 1
 
     def score(t: TableInfo):
-        links = sum(1 for o in info.tables if o is not t and _one_to_one_column(o, t, unique))
-        s = 3 * links + 2 * t.row_count / max_rows + key_scorer(ColumnRef(t.schema, t.name, t.pk[0]))
+        # A declared FK pointing here is strong evidence; a same-name unique key is weak, because
+        # every 1:1 child shares the grain's key name and links to every other child too.
+        fk_links = name_links = 0
+        for o in info.tables:
+            if o is not t and _one_to_one_column(o, t, unique):
+                if _declared_fk_to(o, t):
+                    fk_links += 1
+                else:
+                    name_links += 1
+        s = (3 * fk_links + name_links + 2 * t.row_count / max_rows
+             + key_scorer(ColumnRef(t.schema, t.name, t.pk[0])))
         return (s, len(t.columns), t.name)
 
     grain = max(candidates, key=score)
@@ -31,6 +40,10 @@ def plan_joins(info: SchemaInfo, profiles: list[ColumnProfile],
         else:
             plan.excluded.append({"table": t.label, "reason": _exclusion_reason(t, grain)})
     return plan
+
+
+def _declared_fk_to(t: TableInfo, target: TableInfo) -> bool:
+    return any((fk.ref_table, fk.ref_schema) == (target.name, target.schema) for fk in t.fks)
 
 
 def _one_to_one_column(t: TableInfo, grain: TableInfo, unique: set[ColumnRef]) -> str | None:

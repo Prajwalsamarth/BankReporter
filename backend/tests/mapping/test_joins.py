@@ -145,3 +145,13 @@ def test_plan_on_real_clients(request, engine_fixture, schema, grain, joined):
     assert plan.grain.table == grain
     assert {j.table for j in plan.joins} == joined
     assert plan.excluded == []
+
+
+def test_declared_fks_outweigh_same_name_links():
+    # Regression: a wide child table sharing the grain's key name used to win the tie on column count.
+    tables = dict(CLIENT1_LIKE)
+    tables["bureau_report"] = (["application_id"], 2000,
+                               [("application_id", True)] + [(f"c{i}", False) for i in range(12)],
+                               [("application_id", "loan_application", "application_id")])
+    info, profiles = make("los", tables)
+    assert plan_joins(info, profiles, no_key_signal).grain.table == "loan_application"
