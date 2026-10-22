@@ -4,17 +4,30 @@ export class ApiError extends Error {
   }
 }
 
+let onUnauthorized: (() => void) | null = null;
+/** Called when a non-auth request comes back 401 (the session expired or was ended elsewhere). */
+export function setUnauthorizedHandler(handler: (() => void) | null) { onUnauthorized = handler; }
+
 export async function api<T>(path: string, init?: RequestInit & { json?: unknown }): Promise<T> {
   const { json, ...rest } = init ?? {};
   const res = await fetch(`/api${path}`, {
     ...rest,
+    credentials: "same-origin",
     headers: json !== undefined ? { "Content-Type": "application/json" } : undefined,
     body: json !== undefined ? JSON.stringify(json) : rest.body,
   });
+  if (res.status === 401 && !path.startsWith("/auth/")) onUnauthorized?.();
   if (res.status === 204) return undefined as T;
   const body = await res.json().catch(() => null);
   if (!res.ok) throw new ApiError(res.status, body?.detail ?? res.statusText);
   return body as T;
+}
+
+export interface ClientRef { id: number; name: string; code?: string }
+export interface Me {
+  user: { id: number; username: string; display_name: string; role: "admin" | "client" };
+  client: ClientRef | null;
+  clients: ClientRef[];
 }
 
 export type Dialect = "postgresql" | "mysql";

@@ -1,4 +1,4 @@
-import type { Entry, RunDetail } from "../api";
+import type { Entry, Me, RunDetail } from "../api";
 
 export const entry = (over: Partial<Entry>): Entry => ({
   field_id: "x", label: "X", section: "application", required: false,
@@ -40,3 +40,13 @@ export const catalog = {
   sections: [{ id: "application", label: "Application" }, { id: "bureau", label: "Bureau (CIBIL)" }],
 };
 export const connections = [{ id: 7, name: "NovaBank", dialect: "postgresql", url_masked: "x", schemas: ["los"], needs_password: false }];
+
+export const meClient: Me = {
+  user: { id: 2, username: "nova.analyst", display_name: "Nova Analyst", role: "client" },
+  client: { id: 1, name: "NovaBank", code: "novabank" }, clients: [],
+};
+export const meAdmin: Me = {
+  user: { id: 1, username: "admin", display_name: "Platform Admin", role: "admin" },
+  client: { id: 1, name: "NovaBank", code: "novabank" },
+  clients: [{ id: 2, name: "Bharat Finserv", code: "bharat" }, { id: 1, name: "NovaBank", code: "novabank" }],
+};
