@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { api, type Connection, type ConnectionInput, type TestResult } from "../api";
+import { useMe } from "../auth";
 import { ConnectionForm } from "../components/ConnectionForm";
 
 function TestOutcome({ result }: { result: TestResult }) {
@@ -11,7 +12,7 @@ function TestOutcome({ result }: { result: TestResult }) {
     : <Text size="sm" c="red">{result.error}</Text>;
 }
 
-function ConnectionRow({ conn, onEdit }: { conn: Connection; onEdit: () => void }) {
+function ConnectionRow({ conn, onEdit, isAdmin }: { conn: Connection; onEdit: () => void; isAdmin: boolean }) {
   const qc = useQueryClient();
   const [confirming, setConfirming] = useState(false);
   const test = useMutation({ mutationFn: () => api<TestResult>(`/connections/${conn.id}/test`, { method: "POST" }) });
@@ -22,6 +23,7 @@ function ConnectionRow({ conn, onEdit }: { conn: Connection; onEdit: () => void 
   return (
     <Table.Tr>
       <Table.Td><Text fw={500}>{conn.name}</Text></Table.Td>
+      {isAdmin && <Table.Td>{conn.client?.name ?? "—"}</Table.Td>}
       <Table.Td><Badge variant="light">{conn.dialect}</Badge></Table.Td>
       <Table.Td>
         {conn.needs_password
@@ -34,14 +36,14 @@ function ConnectionRow({ conn, onEdit }: { conn: Connection; onEdit: () => void 
         <Group gap="xs" wrap="nowrap">
           <Button size="xs" variant="default" onClick={() => test.mutate()} loading={test.isPending}>Test</Button>
           <Button size="xs" variant="default" onClick={onEdit}>Edit</Button>
-          {confirming ? (
+          {isAdmin && (confirming ? (
             <>
               <Button size="xs" color="red" onClick={() => remove.mutate()} loading={remove.isPending}>Confirm delete</Button>
               <Button size="xs" variant="subtle" onClick={() => setConfirming(false)}>Cancel</Button>
             </>
           ) : (
             <Button size="xs" variant="default" color="red" onClick={() => setConfirming(true)}>Delete</Button>
-          )}
+          ))}
           <Anchor component={Link} to={`/connections/${conn.id}/mapping`} size="sm">Open mapping</Anchor>
         </Group>
       </Table.Td>
@@ -51,6 +53,8 @@ function ConnectionRow({ conn, onEdit }: { conn: Connection; onEdit: () => void 
 
 export function ConnectionsPage() {
   const qc = useQueryClient();
+  const me = useMe();
+  const isAdmin = me.data?.user.role === "admin";
   const connections = useQuery({ queryKey: ["connections"], queryFn: () => api<Connection[]>("/connections") });
   const [editing, setEditing] = useState<Connection | "new" | null>(null);
   const save = useMutation({
@@ -64,19 +68,19 @@ export function ConnectionsPage() {
     <Stack>
       <Group justify="space-between">
         <Title order={2}>Connections</Title>
-        <Button onClick={() => { save.reset(); setEditing("new"); }}>Add connection</Button>
+        {isAdmin && <Button onClick={() => { save.reset(); setEditing("new"); }}>Add connection</Button>}
       </Group>
       {connections.isError && <Alert color="red">{String(connections.error)}</Alert>}
       {connections.data?.length === 0 && <Text c="dimmed">No connections yet. Add a client database to start mapping.</Text>}
       {!!connections.data?.length && (
         <Table verticalSpacing="sm">
           <Table.Thead><Table.Tr>
-            <Table.Th>Name</Table.Th><Table.Th>Type</Table.Th><Table.Th>URL</Table.Th>
+            <Table.Th>Name</Table.Th>{isAdmin && <Table.Th>Client</Table.Th>}<Table.Th>Type</Table.Th><Table.Th>URL</Table.Th>
             <Table.Th>Schemas</Table.Th><Table.Th />
           </Table.Tr></Table.Thead>
           <Table.Tbody>
             {connections.data.map((c) => (
-              <ConnectionRow key={c.id} conn={c} onEdit={() => { save.reset(); setEditing(c); }} />
+              <ConnectionRow key={c.id} conn={c} isAdmin={isAdmin} onEdit={() => { save.reset(); setEditing(c); }} />
             ))}
           </Table.Tbody>
         </Table>
@@ -87,7 +91,8 @@ export function ConnectionsPage() {
         {editing !== null && (
           <ConnectionForm key={editing === "new" ? "new" : editing.id}
             initial={editing === "new" ? undefined : editing}
-            onSubmit={(v) => save.mutate(v)} submitting={save.isPending} />
+            onSubmit={(v) => save.mutate(v)} submitting={save.isPending}
+            clients={isAdmin ? me.data?.clients : undefined} />
         )}
       </Modal>
     </Stack>

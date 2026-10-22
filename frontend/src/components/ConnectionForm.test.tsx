@@ -6,7 +6,7 @@ import { renderWithProviders } from "../test/render";
 
 const existing = {
   id: 1, name: "NovaBank", dialect: "postgresql" as const, schemas: ["los"], needs_password: false,
-  url_masked: "postgresql+psycopg://novabank:***@localhost:5433/novabank",
+  url_masked: "postgresql+psycopg://novabank:***@localhost:5433/novabank", client: null,
 };
 
 describe("ConnectionForm", () => {
@@ -56,5 +56,18 @@ describe("ConnectionForm", () => {
     expect(screen.getByLabelText("User")).toHaveValue("novabank");
     await userEvent.setup().click(screen.getByRole("button", { name: "Save" }));
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ password: null, schemas: ["los"] }));
+  });
+  it("asks the admin which client the connection belongs to", async () => {
+    const onSubmit = vi.fn();
+    renderWithProviders(<ConnectionForm initial={existing} onSubmit={onSubmit}
+      clients={[{ id: 1, name: "NovaBank" }, { id: 2, name: "Bharat Finserv" }]} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(screen.getByText("Choose a client")).toBeInTheDocument();
+    await user.click(screen.getByRole("textbox", { name: "Client" }));
+    await user.click(await screen.findByRole("option", { name: "Bharat Finserv" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ client_id: 2 }));
   });
 });

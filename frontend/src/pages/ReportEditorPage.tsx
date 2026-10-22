@@ -11,7 +11,10 @@ import {
 import { BLOCK_TYPES, cloneBlock, describeBlock, newBlock } from "../blocks";
 import { BlockSettings } from "../components/BlockSettings";
 import { BlockView } from "../components/BlockView";
-import { ClientSelect } from "../components/ClientSelect";
+import { useMe } from "../auth";
+import { NoClient } from "../components/NoClient";
+import { RenderError } from "../components/RenderError";
+import { SharingChoice } from "../components/SharingChoice";
 import { PeriodSelect, periodReady } from "../components/PeriodSelect";
 
 interface Draft { name: string; description: string; blocks: Block[] }
@@ -29,7 +32,10 @@ export function ReportEditorPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
   const [leaving, setLeaving] = useState(false);
-  const [client, setClient] = useState<number | null>(null);
+  const me = useMe();
+  const clientId = me.data?.client?.id ?? null;
+  const readOnly = !isNew && existing.data?.editable === false;     // a shared template: save only as a copy
+  const [shared, setShared] = useState(true);
   const [period, setPeriod] = useState<PeriodSpec>({ preset: "last_month" });
   const [blockErrors, setBlockErrors] = useState<Record<string, string[]>>({});
   const [message, setMessage] = useState<{ color: string; text: string } | null>(null);
@@ -37,22 +43,22 @@ export function ReportEditorPage() {
   useEffect(() => {
     if (existing.data && draft === null) {
       const { name, description, blocks } = existing.data;
-      setDraft({ name, description, blocks });
+      setDraft({ name: existing.data.editable === false ? `${name} (copy)` : name, description, blocks });
     }
   }, [existing.data, draft]);
 
   const [debounced] = useDebouncedValue(draft?.blocks ?? [], 600);
   const preview = useQuery({
-    queryKey: ["render-blocks", debounced, client, period],
-    enabled: client !== null && debounced.length > 0 && periodReady(period),
-    queryFn: () => api<Rendered>("/render-blocks", { method: "POST", json: { blocks: debounced, connection_id: client, period } }),
+    queryKey: ["render-blocks", debounced, clientId, period],
+    enabled: clientId !== null && debounced.length > 0 && periodReady(period),
+    queryFn: () => api<Rendered>("/render-blocks", { method: "POST", json: { blocks: debounced, period } }),
     placeholderData: keepPreviousData,
     retry: false,
   });
 
   const save = useMutation({
-    mutationFn: () => (isNew
-      ? api<ReportTemplate>("/reports", { method: "POST", json: draft })
+    mutationFn: () => (isNew || readOnly
+      ? api<ReportTemplate>("/reports", { method: "POST", json: { ...draft, shared } })
       : api<ReportTemplate>(`/reports/${id}`, { method: "PUT", json: draft })),
     onSuccess: (t) => {
       setDirty(false);
@@ -60,7 +66,7 @@ export function ReportEditorPage() {
       setMessage({ color: "teal", text: "Saved" });
       qc.invalidateQueries({ queryKey: ["reports"] });
       qc.setQueryData(["report", String(t.id)], t);   // reopening the editor must show what was saved
-      if (isNew) navigate(`/reports/${t.id}/edit`, { replace: true });
+      if (isNew || readOnly) navigate(`/reports/${t.id}/edit`, { replace: true });
     },
     onError: (err) => {
       const detail = err instanceof ApiError ? (err.detail as { errors?: { block_id: string; messages: string[] }[] }) : null;
@@ -91,12 +97,13 @@ export function ReportEditorPage() {
       <Group align="flex-end" wrap="wrap">
         <TextInput label="Template name" w={260} value={draft.name} onChange={(e) => update({ name: e.currentTarget.value })} />
         <TextInput label="Description" w={320} value={draft.description} onChange={(e) => update({ description: e.currentTarget.value })} />
-        <ClientSelect label="Preview client" value={client} onChange={setClient} />
+        {(isNew || readOnly) && <SharingChoice shared={shared} onChange={setShared} />}
         <PeriodSelect value={period} onChange={setPeriod} />
-        <Button onClick={() => save.mutate()} loading={save.isPending}>Save</Button>
+        <Button onClick={() => save.mutate()} loading={save.isPending}>{readOnly ? "Save as copy" : "Save"}</Button>
         <Button variant="default" onClick={() => (dirty ? setLeaving(true) : navigate("/reports"))}>Back to reports</Button>
         {dirty && <Badge color="orange" variant="light">Unsaved changes</Badge>}
       </Group>
+      {readOnly && <Alert color="blue">This is a shared template. Saving creates your own copy.</Alert>}
       {message && <Alert color={message.color} withCloseButton onClose={() => setMessage(null)}>{message.text}</Alert>}
 
       <Grid>
@@ -129,8 +136,8 @@ export function ReportEditorPage() {
         </Grid.Col>
         <Grid.Col span={{ base: 12, md: 6 }}>
           <div className="report-paper">
-            {client === null && <Text c="dimmed" size="sm">Choose a preview client to see live data.</Text>}
-            {preview.isError && <Alert color="red">{errorText(preview.error)}</Alert>}
+            {me.data && clientId === null && <NoClient />}
+            {preview.isError && <RenderError error={preview.error} />}
             {blocks.map((b) => (
               <div key={b.id} className="report-block">
                 {results.get(b.id) ? <BlockView result={results.get(b.id)!} /> : <Text c="dimmed" size="sm">{describeBlock(b)}</Text>}

@@ -10,7 +10,11 @@ import {
 import { cloneBlock, newBlock, uid } from "../blocks";
 import { BlockSettings } from "../components/BlockSettings";
 import { BlockView } from "../components/BlockView";
-import { ClientSelect } from "../components/ClientSelect";
+import { useMe } from "../auth";
+import { NoClient } from "../components/NoClient";
+import { OwnerBadge } from "../components/OwnerBadge";
+import { RenderError } from "../components/RenderError";
+import { SharingChoice } from "../components/SharingChoice";
 import { PeriodSelect, periodReady } from "../components/PeriodSelect";
 
 const HEIGHT = { s: 120, m: 260, l: 380 } as const;
@@ -26,7 +30,9 @@ export function DashboardsPage() {
   const catalog = useQuery({ queryKey: ["catalog"], queryFn: () => api<Catalog>("/catalog") });
   const metrics = useQuery({ queryKey: ["metrics"], queryFn: () => api<Metric[]>("/metrics") });
 
-  const [client, setClient] = useState<number | null>(null);
+  const me = useMe();
+  const clientId = me.data?.client?.id ?? null;
+  const [shared, setShared] = useState(true);
   const [period, setPeriod] = useState<PeriodSpec | null>(null);
   const [editing, setEditing] = useState(false);
   const [tiles, setTiles] = useState<Tile[] | null>(null);      // working copy once edited
@@ -44,11 +50,11 @@ export function DashboardsPage() {
   const shown = tiles ?? board.data?.tiles ?? [];
   const [debounced] = useDebouncedValue(shown, 400);
   const rendered = useQuery({
-    queryKey: ["render-dashboard", id, tiles === null ? "saved" : debounced, client, period],
-    enabled: !!id && client !== null && periodReady(period) && shown.length > 0,
+    queryKey: ["render-dashboard", id, tiles === null ? "saved" : debounced, clientId, period],
+    enabled: !!id && clientId !== null && periodReady(period) && shown.length > 0,
     queryFn: () => (tiles === null
-      ? api<Rendered>(`/dashboards/${id}/render`, { method: "POST", json: { connection_id: client, period } })
-      : api<Rendered>("/render-blocks", { method: "POST", json: { blocks: debounced.map((t) => t.block), connection_id: client, period } })),
+      ? api<Rendered>(`/dashboards/${id}/render`, { method: "POST", json: { period } })
+      : api<Rendered>("/render-blocks", { method: "POST", json: { blocks: debounced.map((t) => t.block), period } })),
     placeholderData: keepPreviousData,
     retry: false,
   });
@@ -59,7 +65,7 @@ export function DashboardsPage() {
     onError: (e) => setMessage(errorText(e)),
   });
   const saveAs = useMutation({
-    mutationFn: (name: string) => api<Dashboard>("/dashboards", { method: "POST", json: { ...body(), name } }),
+    mutationFn: (name: string) => api<Dashboard>("/dashboards", { method: "POST", json: { ...body(), name, shared } }),
     onSuccess: (d) => { setSaveAsName(null); qc.invalidateQueries({ queryKey: ["dashboards"] }); navigate(`/dashboards/${d.id}`); },
     onError: (e) => setMessage(errorText(e)),
   });
@@ -80,23 +86,29 @@ export function DashboardsPage() {
         <Select label="Dashboard" w={220} allowDeselect={false} value={id ?? null}
           data={(list.data ?? []).map((d) => ({ value: String(d.id), label: d.name }))}
           onChange={(v) => navigate(`/dashboards/${v}`)} />
-        <ClientSelect value={client} onChange={setClient} />
+        <OwnerBadge item={board.data} />
         <PeriodSelect value={period} onChange={setPeriod} />
         <Button variant="default" onClick={() => rendered.refetch()}>Refresh</Button>
-        <Button variant={editing ? "filled" : "default"} onClick={() => setEditing((e) => !e)}>{editing ? "Done" : "Edit"}</Button>
+        {board.data.editable && (
+          <Button variant={editing ? "filled" : "default"} onClick={() => setEditing((e) => !e)}>{editing ? "Done" : "Edit"}</Button>
+        )}
         {tiles !== null && <Button onClick={() => save.mutate()} loading={save.isPending}>Save</Button>}
         {saveAsName === null ? (
-          <Button variant="subtle" onClick={() => setSaveAsName(`${board.data!.name} (copy)`)}>Save as…</Button>
+          <Button variant="subtle" onClick={() => setSaveAsName(`${board.data!.name} (copy)`)}>
+            {board.data.editable ? "Save as…" : "Save as copy"}
+          </Button>
         ) : (
           <Group gap="xs" align="flex-end">
             <TextInput label="New dashboard name" value={saveAsName} onChange={(e) => setSaveAsName(e.currentTarget.value)} />
+            <SharingChoice shared={shared} onChange={setShared} />
             <Button onClick={() => saveAs.mutate(saveAsName)} loading={saveAs.isPending}>Create</Button>
             <Button variant="subtle" onClick={() => setSaveAsName(null)}>Cancel</Button>
           </Group>
         )}
       </Group>
       {message && <Alert color="red" withCloseButton onClose={() => setMessage(null)}>{message}</Alert>}
-      {rendered.isError && <Alert color="red">{errorText(rendered.error)}</Alert>}
+      {me.data && clientId === null && <NoClient />}
+      {rendered.isError && <RenderError error={rendered.error} />}
       {editing && (
         <Menu>
           <Menu.Target><Button variant="light" w="fit-content">Add tile</Button></Menu.Target>

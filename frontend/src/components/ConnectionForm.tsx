@@ -1,6 +1,6 @@
-import { Button, Group, PasswordInput, SegmentedControl, Stack, TagsInput, Text, TextInput } from "@mantine/core";
+import { Button, Group, PasswordInput, SegmentedControl, Select, Stack, TagsInput, Text, TextInput } from "@mantine/core";
 import { useState, type FormEvent } from "react";
-import type { Connection, ConnectionInput, Dialect } from "../api";
+import type { ClientRef, Connection, ConnectionInput, Dialect } from "../api";
 
 const DEFAULT_PORT: Record<Dialect, number> = { postgresql: 5432, mysql: 3306 };
 
@@ -14,9 +14,10 @@ interface Props {
   initial?: Connection;
   onSubmit: (values: ConnectionInput) => void;
   submitting?: boolean;
+  clients?: ClientRef[];     // admin only: which client the connection belongs to
 }
 
-export function ConnectionForm({ initial, onSubmit, submitting }: Props) {
+export function ConnectionForm({ initial, onSubmit, submitting, clients }: Props) {
   const parsed = parseMaskedUrl(initial?.url_masked ?? null);
   const [values, setValues] = useState({
     name: initial?.name ?? "",
@@ -27,6 +28,7 @@ export function ConnectionForm({ initial, onSubmit, submitting }: Props) {
     user: parsed?.user ?? "",
     password: "",
     schemas: initial?.schemas ?? [],
+    client: initial?.client ? String(initial.client.id) : (null as string | null),
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const set = (k: keyof typeof values) => (v: unknown) => setValues((s) => ({ ...s, [k]: v }));
@@ -46,18 +48,25 @@ export function ConnectionForm({ initial, onSubmit, submitting }: Props) {
     if (!/^\d+$/.test(values.port)) errs.port = "Port must be a number";
     if (!initial && !values.password) errs.password = "Password is required";
     if (values.schemas.length === 0) errs.schemas = "Add at least one schema";
+    if (clients && !values.client) errs.client = "Choose a client";
     setErrors(errs);
     if (Object.keys(errs).length) return;
     onSubmit({
       name: values.name.trim(), dialect: values.dialect, host: values.host.trim(), port: Number(values.port),
       database: values.database.trim(), user: values.user.trim(),
       password: values.password ? values.password : null, schemas: values.schemas,
+      ...(clients ? { client_id: Number(values.client) } : {}),
     });
   }
 
   return (
     <form onSubmit={submit} noValidate>
       <Stack gap="sm">
+        {clients && (
+          <Select label="Client" placeholder="Choose client" allowDeselect={false} value={values.client}
+            data={clients.map((c) => ({ value: String(c.id), label: c.name }))}
+            onChange={(v) => set("client")(v)} error={errors.client} />
+        )}
         <TextInput label="Name" value={values.name} onChange={(e) => set("name")(e.currentTarget.value)} error={errors.name} />
         <div>
           <Text size="sm" fw={500} mb={4}>Database type</Text>

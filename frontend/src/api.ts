@@ -39,6 +39,7 @@ export interface Connection {
   url_masked: string | null;
   schemas: string[];
   needs_password: boolean;
+  client: ClientRef | null;
 }
 
 export interface ConnectionInput {
@@ -50,6 +51,7 @@ export interface ConnectionInput {
   user: string;
   password: string | null;
   schemas: string[];
+  client_id?: number | null;
 }
 
 export interface TestResult { ok: boolean; tables: string[]; error: string | null }
@@ -153,12 +155,12 @@ export interface Block {
 }
 export interface Tile { id: string; block: Block; width: 3 | 4 | 6 | 8 | 12; height: "s" | "m" | "l" }
 export interface PeriodSpec { preset: string; start?: string; end?: string }
-export interface ReportSummary { id: number; name: string; description: string; updated_at: string }
+export interface Ownership { shared: boolean; editable: boolean; owner: ClientRef | null }
+export interface ReportSummary extends Ownership { id: number; name: string; description: string; updated_at: string }
 export interface ReportTemplate extends ReportSummary { blocks: Block[] }
-export interface DashboardSummary { id: number; name: string; default_period: PeriodSpec; updated_at: string }
+export interface DashboardSummary extends Ownership { id: number; name: string; default_period: PeriodSpec; updated_at: string }
 export interface Dashboard extends DashboardSummary { tiles: Tile[] }
 export interface Metric { id: string; label: string; unit: string; better: string; group: string; description: string }
-export interface PublishedConnection { id: number; name: string; dialect: string; published_at: string }
 export interface CatalogField {
   id: string; label: string; section: string; kind: string; type: string; role: string;
   values: string[] | null; unit: string | null;

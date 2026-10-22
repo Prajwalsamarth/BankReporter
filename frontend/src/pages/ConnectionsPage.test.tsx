@@ -2,24 +2,26 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { ConnectionsPage } from "./ConnectionsPage";
+import { meAdmin, meClient } from "../test/fixtures";
 import { mockApi, renderWithProviders } from "../test/render";
 
 const conn = {
   id: 7, name: "NovaBank", dialect: "postgresql", schemas: ["los"], needs_password: false,
-  url_masked: "postgresql+psycopg://novabank:***@localhost:5433/novabank",
+  url_masked: "postgresql+psycopg://novabank:***@localhost:5433/novabank", client: { id: 1, name: "NovaBank" },
 };
 
 describe("ConnectionsPage", () => {
   it("lists connections with masked URLs and a mapping link", async () => {
-    mockApi({ "GET /api/connections": [conn] });
+    mockApi({ "GET /api/auth/me": meAdmin, "GET /api/connections": [conn] });
     renderWithProviders(<ConnectionsPage />);
-    expect(await screen.findByText("NovaBank")).toBeInTheDocument();
+    expect(await screen.findAllByText("NovaBank")).toHaveLength(2);    // name, and the admin's Client column
     expect(screen.getByText(conn.url_masked)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Open mapping" })).toHaveAttribute("href", "/connections/7/mapping");
   });
 
   it("shows the result of testing a connection", async () => {
     mockApi({
+      "GET /api/auth/me": meAdmin,
       "GET /api/connections": [conn],
       "POST /api/connections/7/test": { ok: true, tables: ["los.customer", "los.loan_application"], error: null },
     });
@@ -30,6 +32,7 @@ describe("ConnectionsPage", () => {
 
   it("shows a failed test's error", async () => {
     mockApi({
+      "GET /api/auth/me": meAdmin,
       "GET /api/connections": [conn],
       "POST /api/connections/7/test": { ok: false, tables: [], error: "connection refused" },
     });
@@ -39,7 +42,7 @@ describe("ConnectionsPage", () => {
   });
 
   it("asks for confirmation inside the page before deleting", async () => {
-    const calls = mockApi({ "GET /api/connections": [conn], "DELETE /api/connections/7": undefined });
+    const calls = mockApi({ "GET /api/auth/me": meAdmin, "GET /api/connections": [conn], "DELETE /api/connections/7": undefined });
     renderWithProviders(<ConnectionsPage />);
     const user = userEvent.setup();
     await user.click(await screen.findByRole("button", { name: "Delete" }));
@@ -49,8 +52,23 @@ describe("ConnectionsPage", () => {
   });
 
   it("flags connections whose password must be re-entered", async () => {
-    mockApi({ "GET /api/connections": [{ ...conn, url_masked: null, needs_password: true }] });
+    mockApi({ "GET /api/auth/me": meAdmin, "GET /api/connections": [{ ...conn, url_masked: null, needs_password: true }] });
     renderWithProviders(<ConnectionsPage />);
     expect(await screen.findByText("Password needs re-entering")).toBeInTheDocument();
+  });
+  it("hides admin-only controls from client users", async () => {
+    mockApi({ "GET /api/auth/me": meClient, "GET /api/connections": [conn] });
+    renderWithProviders(<ConnectionsPage />);
+    expect(await screen.findByText("NovaBank")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add connection" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edit" })).toBeInTheDocument();
+  });
+
+  it("shows the admin which client each connection belongs to", async () => {
+    mockApi({ "GET /api/auth/me": meAdmin, "GET /api/connections": [conn] });
+    renderWithProviders(<ConnectionsPage />);
+    expect(await screen.findByRole("columnheader", { name: "Client" })).toBeInTheDocument();
+    expect(screen.getAllByText("NovaBank")).toHaveLength(2);     // the name cell and the client cell
   });
 });
