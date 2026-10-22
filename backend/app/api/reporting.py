@@ -3,7 +3,7 @@
 from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import create_engine, func
-from sqlalchemy.exc import IntegrityError, OperationalError
+from sqlalchemy.exc import OperationalError
 
 from app.connections import DecryptError, decrypt_url, mask_secrets
 from app.reporting.period import PeriodError, resolve_period
@@ -93,11 +93,13 @@ def _check_dashboard(body: DashboardIn, st) -> None:
 
 
 def _save(s, obj, conflict_name: str):
-    try:
-        s.commit()
-    except IntegrityError:
+    s.flush()                       # a new object gets its id, so it doesn't clash with itself
+    clash = s.query(type(obj)).filter(type(obj).name == conflict_name, type(obj).client_id.is_(None),
+                                      type(obj).id != (obj.id or 0)).first()
+    if clash:
         s.rollback()
-        raise HTTPException(409, f"the name {conflict_name!r} is already used") from None
+        raise HTTPException(409, f"the name {conflict_name!r} is already used")
+    s.commit()
     s.refresh(obj)
 
 
