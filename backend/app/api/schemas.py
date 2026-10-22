@@ -13,6 +13,12 @@ class ConnectionIn(BaseModel):
     user: str
     password: str | None = None
     schemas: list[str] = Field(min_length=1)
+    client_id: int | None = None
+
+
+class ClientRefOut(BaseModel):
+    id: int
+    name: str
 
 
 class ConnectionOut(BaseModel):
@@ -22,6 +28,7 @@ class ConnectionOut(BaseModel):
     url_masked: str | None
     schemas: list[str]
     needs_password: bool = False
+    client: ClientRefOut | None = None
 
 
 class TestResultOut(BaseModel):

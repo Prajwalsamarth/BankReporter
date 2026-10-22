@@ -1,4 +1,4 @@
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Request, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, Response
 from sqlalchemy import create_engine, inspect
 from sqlalchemy.exc import IntegrityError
 
@@ -7,11 +7,13 @@ from app.api import service
 from app.connections import (
     DecryptError, build_url, check_connection, decrypt_url, encrypt_url, mask_secrets, mask_url,
 )
+from app.auth.access import require_admin, visible_connection, visible_run
+from app.auth.scope import Scope, get_scope
 from app.mapping.introspect import normalise_type
 from app.mapping.joins import validate_join_plan
 from app.mapping.types import ColumnRef, dump, load_join_plan, load_profile
 from app.mapping.viewgen import PublishError, build_base_select, build_view_ddl, preview, publish
-from app.store import Connection, MappingRun, Publication
+from app.store import Client, Connection, MappingRun, Publication
 
 router = APIRouter(prefix="/api")
 
@@ -26,14 +28,8 @@ def _connection_out(c: Connection, key: str) -> S.ConnectionOut:
     except DecryptError:
         masked, needs = None, True
     return S.ConnectionOut(id=c.id, name=c.name, dialect=c.dialect, url_masked=masked,
-                           schemas=c.schemas, needs_password=needs)
-
-
-def _get(s, model, id_):
-    obj = s.get(model, id_)
-    if obj is None:
-        raise HTTPException(404, f"{model.__tablename__} {id_} not found")
-    return obj
+                           schemas=c.schemas, needs_password=needs,
+                           client=S.ClientRefOut(id=c.client.id, name=c.client.name) if c.client else None)
 
 
 def _url(conn: Connection, key: str) -> str:
@@ -41,6 +37,26 @@ def _url(conn: Connection, key: str) -> str:
         return decrypt_url(conn.url_encrypted, key)
     except DecryptError as exc:
         raise HTTPException(409, f"{exc}; re-enter the password") from exc
+
+
+def _commit_named(s, name: str) -> None:
+    try:
+        s.commit()
+    except IntegrityError:
+        s.rollback()
+        raise HTTPException(409, f"the name {name!r} can't be used; choose another") from None
+
+
+def _check_client_free(s, client_id: int, except_cid: int | None = None) -> Client:
+    client = s.get(Client, client_id)
+    if client is None:
+        raise HTTPException(404, f"client {client_id} not found")
+    q = s.query(Connection).filter(Connection.client_id == client_id)
+    if except_cid is not None:
+        q = q.filter(Connection.id != except_cid)
+    if q.first():
+        raise HTTPException(409, f"{client.name} already has a connection")
+    return client
 
 
 # ---- catalog & connections ------------------------------------------------------------------
@@ -51,34 +67,41 @@ def get_catalog(request: Request):
 
 
 @router.get("/connections", response_model=list[S.ConnectionOut])
-def list_connections(request: Request):
+def list_connections(request: Request, scope: Scope = Depends(get_scope)):
     ctx = _ctx(request)
     with ctx.store.session() as s:
-        return [_connection_out(c, ctx.settings.secret_key) for c in s.query(Connection).order_by(Connection.name)]
+        q = s.query(Connection).order_by(Connection.name)
+        if not scope.is_admin:
+            q = q.filter(Connection.client_id == scope.client_id)
+        return [_connection_out(c, ctx.settings.secret_key) for c in q]
 
 
 @router.post("/connections", response_model=S.ConnectionOut, status_code=201)
-def create_connection(body: S.ConnectionIn, request: Request):
+def create_connection(body: S.ConnectionIn, request: Request, scope: Scope = Depends(get_scope)):
+    require_admin(scope)
     if not body.password:
         raise HTTPException(422, "password is required")
+    if body.client_id is None:
+        raise HTTPException(422, "client_id is required")
     ctx = _ctx(request)
     url = build_url(body.dialect, body.host, body.port, body.database, body.user, body.password)
     with ctx.store.session() as s:
-        c = Connection(name=body.name, dialect=body.dialect, schemas=body.schemas,
+        client = _check_client_free(s, body.client_id)
+        c = Connection(name=body.name, dialect=body.dialect, schemas=body.schemas, client_id=client.id,
                        url_encrypted=encrypt_url(url, ctx.settings.secret_key))
         s.add(c)
-        try:
-            s.commit()
-        except IntegrityError:
-            raise HTTPException(409, f"a connection named {body.name!r} already exists") from None
+        _commit_named(s, body.name)
         return _connection_out(c, ctx.settings.secret_key)
 
 
 @router.put("/connections/{cid}", response_model=S.ConnectionOut)
-def update_connection(cid: int, body: S.ConnectionIn, request: Request):
+def update_connection(cid: int, body: S.ConnectionIn, request: Request, scope: Scope = Depends(get_scope)):
     ctx = _ctx(request)
     with ctx.store.session() as s:
-        c = _get(s, Connection, cid)
+        c = visible_connection(s, scope, cid)
+        if body.client_id is not None and body.client_id != c.client_id:
+            require_admin(scope)
+            c.client_id = _check_client_free(s, body.client_id, except_cid=c.id).id
         password = body.password
         if not password:
             from sqlalchemy import make_url
@@ -86,36 +109,34 @@ def update_connection(cid: int, body: S.ConnectionIn, request: Request):
         url = build_url(body.dialect, body.host, body.port, body.database, body.user, password)
         c.name, c.dialect, c.schemas = body.name, body.dialect, body.schemas
         c.url_encrypted = encrypt_url(url, ctx.settings.secret_key)
-        try:
-            s.commit()
-        except IntegrityError:
-            raise HTTPException(409, f"a connection named {body.name!r} already exists") from None
+        _commit_named(s, body.name)
         return _connection_out(c, ctx.settings.secret_key)
 
 
 @router.delete("/connections/{cid}", status_code=204)
-def delete_connection(cid: int, request: Request):
+def delete_connection(cid: int, request: Request, scope: Scope = Depends(get_scope)):
+    require_admin(scope)
     with _ctx(request).store.session() as s:
-        s.delete(_get(s, Connection, cid))
+        s.delete(visible_connection(s, scope, cid))
         s.commit()
     return Response(status_code=204)
 
 
 @router.post("/connections/{cid}/test", response_model=S.TestResultOut)
-def test_connection_route(cid: int, request: Request):
+def test_connection_route(cid: int, request: Request, scope: Scope = Depends(get_scope)):
     ctx = _ctx(request)
     with ctx.store.session() as s:
-        c = _get(s, Connection, cid)
+        c = visible_connection(s, scope, cid)
         url, schemas = _url(c, ctx.settings.secret_key), list(c.schemas)
     r = check_connection(url, schemas)
     return S.TestResultOut(ok=r.ok, tables=r.tables, error=r.error)
 
 
 @router.get("/connections/{cid}/columns", response_model=list[S.ColumnOut])
-def list_columns(cid: int, request: Request):
+def list_columns(cid: int, request: Request, scope: Scope = Depends(get_scope)):
     ctx = _ctx(request)
     with ctx.store.session() as s:
-        c = _get(s, Connection, cid)
+        c = visible_connection(s, scope, cid)
         url, schemas = _url(c, ctx.settings.secret_key), list(c.schemas)
     engine = create_engine(url)
     try:
@@ -149,10 +170,10 @@ def _detail(run: MappingRun, catalog) -> S.RunDetail:
 
 
 @router.post("/connections/{cid}/mapping-runs", response_model=S.RunStarted, status_code=202)
-def start_run(cid: int, body: S.RunStart, request: Request, tasks: BackgroundTasks):
+def start_run(cid: int, body: S.RunStart, request: Request, tasks: BackgroundTasks, scope: Scope = Depends(get_scope)):
     ctx = _ctx(request)
     with ctx.store.session() as s:
-        c = _get(s, Connection, cid)
+        c = visible_connection(s, scope, cid)
         _url(c, ctx.settings.secret_key)
         run = MappingRun(connection_id=cid, catalog_version=ctx.catalog.version, layers=body.layers,
                          status="running")
@@ -164,34 +185,35 @@ def start_run(cid: int, body: S.RunStart, request: Request, tasks: BackgroundTas
 
 
 @router.get("/mapping-runs/{rid}", response_model=S.RunDetail)
-def get_run(rid: int, request: Request):
+def get_run(rid: int, request: Request, scope: Scope = Depends(get_scope)):
     ctx = _ctx(request)
     with ctx.store.session() as s:
-        return _detail(_get(s, MappingRun, rid), ctx.catalog)
+        return _detail(visible_run(s, scope, rid), ctx.catalog)
 
 
 @router.get("/connections/{cid}/mapping-runs/latest", response_model=S.RunDetail)
-def latest_run(cid: int, request: Request):
+def latest_run(cid: int, request: Request, scope: Scope = Depends(get_scope)):
     ctx = _ctx(request)
     with ctx.store.session() as s:
+        visible_connection(s, scope, cid)
         run = s.query(MappingRun).filter_by(connection_id=cid).order_by(MappingRun.id.desc()).first()
         if run is None:
             raise HTTPException(404, f"no mapping runs for connection {cid}")
         return _detail(run, ctx.catalog)
 
 
-def _ready_run(s, rid: int) -> MappingRun:
-    run = _get(s, MappingRun, rid)
+def _ready_run(s, scope: Scope, rid: int) -> MappingRun:
+    run = visible_run(s, scope, rid)
     if run.status not in ("ready", "published"):
         raise HTTPException(409, f"run {rid} is {run.status}")
     return run
 
 
 @router.patch("/mapping-runs/{rid}/entries/{field_id}", response_model=S.EntryOut)
-def patch_entry(rid: int, field_id: str, body: S.EntryPatch, request: Request):
+def patch_entry(rid: int, field_id: str, body: S.EntryPatch, request: Request, scope: Scope = Depends(get_scope)):
     ctx = _ctx(request)
     with ctx.store.session() as s:
-        run = _ready_run(s, rid)
+        run = _ready_run(s, scope, rid)
         ref = ColumnRef(body.schema_, body.table, body.column) if body.action == "choose" else None
         try:
             service.edit_entry(run, field_id, body.action, ref, ctx.catalog)
@@ -202,9 +224,9 @@ def patch_entry(rid: int, field_id: str, body: S.EntryPatch, request: Request):
 
 
 @router.post("/mapping-runs/{rid}/accept-above")
-def accept_above(rid: int, body: S.AcceptAbove, request: Request):
+def accept_above(rid: int, body: S.AcceptAbove, request: Request, scope: Scope = Depends(get_scope)):
     with _ctx(request).store.session() as s:
-        run = _ready_run(s, rid)
+        run = _ready_run(s, scope, rid)
         n = 0
         for e in run.entries:
             if e.status == "suggested" and e.source_table and e.score >= body.threshold:
@@ -216,10 +238,10 @@ def accept_above(rid: int, body: S.AcceptAbove, request: Request):
 
 
 @router.put("/mapping-runs/{rid}/join-plan", response_model=S.RunDetail)
-def put_join_plan(rid: int, body: S.JoinPlanIn, request: Request):
+def put_join_plan(rid: int, body: S.JoinPlanIn, request: Request, scope: Scope = Depends(get_scope)):
     ctx = _ctx(request)
     with ctx.store.session() as s:
-        run = _ready_run(s, rid)
+        run = _ready_run(s, scope, rid)
         try:
             plan = load_join_plan(body.join_plan)
         except (KeyError, TypeError, ValueError) as exc:
@@ -259,10 +281,10 @@ def _client_info(run: MappingRun, url: str):
 
 
 @router.get("/mapping-runs/{rid}/preview", response_model=S.PreviewOut)
-def preview_run(rid: int, request: Request, limit: int = Query(20, ge=1, le=200)):
+def preview_run(rid: int, request: Request, limit: int = Query(20, ge=1, le=200), scope: Scope = Depends(get_scope)):
     ctx = _ctx(request)
     with ctx.store.session() as s:
-        run = _ready_run(s, rid)
+        run = _ready_run(s, scope, rid)
         url = _url(run.connection, ctx.settings.secret_key)
         engine, info = _client_info(run, url)
         try:
@@ -277,11 +299,11 @@ def preview_run(rid: int, request: Request, limit: int = Query(20, ge=1, le=200)
 
 
 @router.post("/mapping-runs/{rid}/publish", response_model=S.PublishOut)
-def publish_run(rid: int, request: Request):
+def publish_run(rid: int, request: Request, scope: Scope = Depends(get_scope)):
     ctx = _ctx(request)
     schema = ctx.settings.publish_schema
     with ctx.store.session() as s:
-        run = _get(s, MappingRun, rid)
+        run = visible_run(s, scope, rid)
         found = service.blockers(run, ctx.catalog)
         if found:
             raise HTTPException(409, {"blockers": found})
