@@ -240,8 +240,8 @@ Total: **59 raw fields**, 16 with `required_for_mapping`.
 | id | section | type | formula |
 |---|---|---|---|
 | age_at_application | applicant | integer | `YEARS_BETWEEN(date_of_birth, application_date)` |
-| age_band | applicant | enum(<25, 25-34, 35-44, 45-54, 55+) | `CASE(age_at_application < 25, '<25', age_at_application < 35, '25-34', age_at_application < 45, '35-44', age_at_application < 55, '45-54', '55+')` |
-| income_band | employment | enum(<25K, 25-50K, 50K-1L, 1-2L, 2L+) | `CASE(net_income_monthly < 25000, '<25K', net_income_monthly < 50000, '25-50K', net_income_monthly < 100000, '50K-1L', net_income_monthly < 200000, '1-2L', '2L+')` |
+| age_band | applicant | enum(<25, 25-34, 35-44, 45-54, 55+) | `CASE(age_at_application is None, None, age_at_application < 25, '<25', age_at_application < 35, '25-34', age_at_application < 45, '35-44', age_at_application < 55, '45-54', '55+')` |
+| income_band | employment | enum(<25K, 25-50K, 50K-1L, 1-2L, 2L+) | `CASE(net_income_monthly is None, None, net_income_monthly < 25000, '<25K', net_income_monthly < 50000, '25-50K', net_income_monthly < 100000, '50K-1L', net_income_monthly < 200000, '1-2L', '2L+')` |
 | is_new_to_credit | bureau | boolean | `cibil_score is None` |
 | cibil_band | bureau | enum(NTC, <650, 650-699, 700-749, 750-799, 800+) | `CASE(cibil_score is None, 'NTC', cibil_score < 650, '<650', cibil_score < 700, '650-699', cibil_score < 750, '700-749', cibil_score < 800, '750-799', '800+')` |
 | has_delinquency_l12m | bureau | boolean | `dpd30_count_l12m > 0 or dpd90_count_l12m > 0` |
@@ -261,6 +261,8 @@ Total: **59 raw fields**, 16 with `required_for_mapping`.
 | disbursement_tat_days | disbursement | integer | `DATE_DIFF_DAYS(decision_date, disbursement_date)` |
 | end_to_end_tat_days | disbursement | integer | `DATE_DIFF_DAYS(application_date, disbursement_date)` |
 | application_month | application | date | `MONTH_START(application_date)` |
+
+Band formulas guard NULL input first; otherwise every `CASE` condition is NULL and the row would fall into the last band.
 
 Roles: bands, flags and `application_month` are dimensions; ratios/pcts/TATs are measures with `default_agg: avg`; `net_disbursed_amount` is `sum`. Boolean flags additionally support `count`-style aggregation in Part 3 (out of scope here).
 

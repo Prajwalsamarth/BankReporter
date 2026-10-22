@@ -1,0 +1,877 @@
+# Canonical field catalog for personal-loan applications (application -> disbursement).
+# Spec: docs/superpowers/specs/2026-10-22-catalog-and-mock-data-design.md §3
+# Field IDs are immutable once used by a mapping, report or dashboard.
+version: 1
+
+sections:
+  - {id: application, label: "Application"}
+  - {id: applicant, label: "Applicant"}
+  - {id: kyc, label: "KYC"}
+  - {id: employment, label: "Employment & Income"}
+  - {id: bureau, label: "Bureau (CIBIL)"}
+  - {id: banking, label: "Bank Statement Analysis"}
+  - {id: decision, label: "Credit Decision"}
+  - {id: disbursement, label: "Disbursement"}
+
+fields:
+  # ---------------------------------------------------------------- application
+  - id: application_id
+    label: "Application ID"
+    section: application
+    kind: raw
+    type: string
+    role: dimension
+    nullable: false
+    required_for_mapping: true
+    synonyms: [application_no, appl_no, app_id, loan_application_id, application_number, lan, appl_id]
+    description: "Unique identifier of the loan application."
+
+  - id: application_date
+    label: "Application Date"
+    section: application
+    kind: raw
+    type: date
+    role: dimension
+    nullable: false
+    required_for_mapping: true
+    synonyms: [applied_on, appl_dt, application_dt, app_date, login_date, submitted_on]
+    description: "Date the application was submitted."
+
+  - id: channel
+    label: "Sourcing Channel"
+    section: application
+    kind: raw
+    type: enum
+    values: [BRANCH, DSA, WEB, MOBILE_APP, PARTNER]
+    role: dimension
+    required_for_mapping: true
+    synonyms: [source_channel, src_chnl, sourcing_channel, lead_source, origination_channel]
+    description: "Channel through which the application was sourced."
+
+  - id: branch_code
+    label: "Branch Code"
+    section: application
+    kind: raw
+    type: string
+    role: dimension
+    synonyms: [br_cd, branch, branch_id, sol_id, branch_cd]
+    description: "Code of the branch that owns the application."
+
+  - id: requested_amount
+    label: "Requested Amount"
+    section: application
+    kind: raw
+    type: decimal
+    role: measure
+    default_agg: sum
+    unit: INR
+    required_for_mapping: true
+    synonyms: [loan_amount_requested, ln_amt_req, applied_amount, requested_loan_amount, amount_requested]
+    description: "Loan amount requested by the applicant, in INR."
+
+  - id: requested_tenure_months
+    label: "Requested Tenure (months)"
+    section: application
+    kind: raw
+    type: integer
+    role: measure
+    default_agg: avg
+    unit: months
+    synonyms: [ln_tnr_req, requested_tenure, tenure_requested, applied_tenure]
+    description: "Repayment tenure requested, in months."
+
+  - id: loan_purpose
+    label: "Loan Purpose"
+    section: application
+    kind: raw
+    type: enum
+    values: [MEDICAL, EDUCATION, WEDDING, HOME_RENOVATION, TRAVEL, DEBT_CONSOLIDATION, CONSUMER_DURABLE, OTHER]
+    role: dimension
+    synonyms: [ln_purp, purpose, end_use, purpose_of_loan]
+    description: "Declared end use of the loan."
+
+  - id: application_status
+    label: "Application Status"
+    section: application
+    kind: raw
+    type: enum
+    values: [SUBMITTED, IN_REVIEW, APPROVED, REJECTED, DISBURSED, WITHDRAWN]
+    role: dimension
+    nullable: false
+    required_for_mapping: true
+    synonyms: [status, appl_sts, app_status, stage, application_stage]
+    description: "Current lifecycle status of the application."
+
+  # ---------------------------------------------------------------- applicant
+  - id: customer_id
+    label: "Customer ID"
+    section: applicant
+    kind: raw
+    type: string
+    role: dimension
+    nullable: false
+    required_for_mapping: true
+    synonyms: [cust_id, cif, cif_id, customer_no, ucic, client_id]
+    description: "Identifier of the applicant as a customer (repeat applicants share it)."
+
+  - id: applicant_name
+    label: "Applicant Name"
+    section: applicant
+    kind: raw
+    type: string
+    role: dimension
+    pii: true
+    synonyms: [full_name, cust_nm, customer_name, name, borrower_name]
+    description: "Full name of the primary applicant."
+
+  - id: date_of_birth
+    label: "Date of Birth"
+    section: applicant
+    kind: raw
+    type: date
+    role: dimension
+    pii: true
+    required_for_mapping: true
+    synonyms: [dob, cust_dob, birth_date, birthdate]
+    description: "Applicant's date of birth."
+
+  - id: gender
+    label: "Gender"
+    section: applicant
+    kind: raw
+    type: enum
+    values: [MALE, FEMALE, OTHER]
+    role: dimension
+    synonyms: [gndr, sex]
+    description: "Applicant's gender."
+
+  - id: marital_status
+    label: "Marital Status"
+    section: applicant
+    kind: raw
+    type: enum
+    values: [SINGLE, MARRIED, DIVORCED, WIDOWED]
+    role: dimension
+    synonyms: [mrtl_sts, marital, marital_stat]
+    description: "Applicant's marital status."
+
+  - id: education
+    label: "Education"
+    section: applicant
+    kind: raw
+    type: enum
+    values: [BELOW_GRADUATE, GRADUATE, POST_GRADUATE, PROFESSIONAL]
+    role: dimension
+    synonyms: [edu_qual, qualification, education_level, highest_qualification]
+    description: "Highest educational qualification."
+
+  - id: residence_type
+    label: "Residence Type"
+    section: applicant
+    kind: raw
+    type: enum
+    values: [OWNED, RENTED, PARENTAL, COMPANY_PROVIDED]
+    role: dimension
+    synonyms: [res_typ, residence_ownership, house_type, accommodation_type]
+    description: "Ownership type of the current residence."
+
+  - id: years_at_residence
+    label: "Years at Residence"
+    section: applicant
+    kind: raw
+    type: integer
+    role: measure
+    default_agg: avg
+    unit: years
+    synonyms: [yrs_res, years_at_current_address, residence_vintage, stability_years]
+    description: "Years at the current residential address."
+
+  - id: city
+    label: "City"
+    section: applicant
+    kind: raw
+    type: string
+    role: dimension
+    synonyms: [city_nm, city_name, current_city, res_city]
+    description: "City of current residence."
+
+  - id: state
+    label: "State"
+    section: applicant
+    kind: raw
+    type: string
+    role: dimension
+    required_for_mapping: true
+    synonyms: [state_nm, state_name, res_state]
+    description: "State of current residence."
+
+  - id: pincode
+    label: "PIN Code"
+    section: applicant
+    kind: raw
+    type: string
+    role: dimension
+    synonyms: [pin_cd, pin, postal_code, zip, zipcode]
+    description: "6-digit postal PIN code of current residence."
+
+  # ---------------------------------------------------------------- kyc
+  - id: pan_number
+    label: "PAN"
+    section: kyc
+    kind: raw
+    type: string
+    role: dimension
+    pii: true
+    synonyms: [pan, pan_no, pan_card, pan_num]
+    description: "Permanent Account Number (format AAAAA9999A)."
+
+  - id: aadhaar_masked
+    label: "Aadhaar (masked)"
+    section: kyc
+    kind: raw
+    type: string
+    role: dimension
+    pii: true
+    synonyms: [aadh_msk, aadhaar, aadhaar_no, uid_masked, masked_aadhaar]
+    description: "Masked Aadhaar number (XXXX-XXXX-1234)."
+
+  - id: ckyc_number
+    label: "CKYC Number"
+    section: kyc
+    kind: raw
+    type: string
+    role: dimension
+    pii: true
+    synonyms: [ckyc_no, ckyc_id, ckyc, central_kyc_number]
+    description: "14-digit Central KYC registry number, if available."
+
+  - id: kyc_status
+    label: "KYC Status"
+    section: kyc
+    kind: raw
+    type: enum
+    values: [VERIFIED, PENDING, FAILED]
+    role: dimension
+    required_for_mapping: true
+    synonyms: [kyc_sts, kyc_state, kyc_result]
+    description: "Outcome of KYC verification."
+
+  - id: kyc_verified_date
+    label: "KYC Verified Date"
+    section: kyc
+    kind: raw
+    type: date
+    role: dimension
+    synonyms: [kyc_vrf_dt, verified_on, kyc_date, kyc_completed_on]
+    description: "Date KYC verification completed."
+
+  - id: kyc_mode
+    label: "KYC Mode"
+    section: kyc
+    kind: raw
+    type: enum
+    values: [VIDEO_KYC, IN_PERSON, DIGILOCKER, OFFLINE_XML]
+    role: dimension
+    synonyms: [verification_mode, kyc_method, kyc_type, kyc_channel]
+    description: "Method used for KYC verification."
+
+  # ---------------------------------------------------------------- employment
+  - id: employment_type
+    label: "Employment Type"
+    section: employment
+    kind: raw
+    type: enum
+    values: [SALARIED, SELF_EMPLOYED_PROFESSIONAL, SELF_EMPLOYED_BUSINESS]
+    role: dimension
+    required_for_mapping: true
+    synonyms: [emp_typ, occupation_type, employment, occupation, emp_type]
+    description: "Applicant's employment type."
+
+  - id: employer_category
+    label: "Employer Category"
+    section: employment
+    kind: raw
+    type: enum
+    values: [GOVT, PSU, MNC, LISTED_PVT, UNLISTED_PVT, SELF]
+    role: dimension
+    synonyms: [emplr_cat, company_category, employer_type, company_type]
+    description: "Category of the employer (SELF for self-employed)."
+
+  - id: employer_name
+    label: "Employer Name"
+    section: employment
+    kind: raw
+    type: string
+    role: dimension
+    synonyms: [emplr_nm, company_name, organisation, organization, employer]
+    description: "Name of the employer or business."
+
+  - id: gross_income_monthly
+    label: "Gross Monthly Income"
+    section: employment
+    kind: raw
+    type: decimal
+    role: measure
+    default_agg: avg
+    unit: INR
+    synonyms: [grs_mth_inc, gross_monthly_income, gross_salary, gross_income]
+    description: "Declared gross monthly income, in INR."
+
+  - id: net_income_monthly
+    label: "Net Monthly Income"
+    section: employment
+    kind: raw
+    type: decimal
+    role: measure
+    default_agg: avg
+    unit: INR
+    required_for_mapping: true
+    synonyms: [net_mth_inc, net_monthly_income, take_home, net_salary, nmi]
+    description: "Net (take-home) monthly income used for underwriting, in INR."
+
+  - id: years_in_current_job
+    label: "Years in Current Job"
+    section: employment
+    kind: raw
+    type: decimal
+    role: measure
+    default_agg: avg
+    unit: years
+    synonyms: [yrs_curr_job, current_job_vintage, job_stability, years_with_employer]
+    description: "Years with the current employer or in the current business."
+
+  - id: total_experience_years
+    label: "Total Work Experience"
+    section: employment
+    kind: raw
+    type: decimal
+    role: measure
+    default_agg: avg
+    unit: years
+    synonyms: [tot_exp_yrs, total_experience, work_experience, experience_years]
+    description: "Total years of work experience."
+
+  # ---------------------------------------------------------------- bureau
+  - id: cibil_score
+    label: "CIBIL Score"
+    section: bureau
+    kind: raw
+    type: integer
+    role: measure
+    default_agg: avg
+    required_for_mapping: true
+    synonyms: [cib_scr, cibil, bureau_score, credit_score, cb_score]
+    description: "CIBIL TransUnion score at application (300-900); null if new-to-credit."
+
+  - id: bureau_pull_date
+    label: "Bureau Pull Date"
+    section: bureau
+    kind: raw
+    type: date
+    role: dimension
+    synonyms: [cib_pull_dt, pulled_on, bureau_date, cibil_date, report_date]
+    description: "Date the bureau report was pulled."
+
+  - id: active_accounts
+    label: "Active Accounts"
+    section: bureau
+    kind: raw
+    type: integer
+    role: measure
+    default_agg: avg
+    synonyms: [cib_act_acc, active_tradelines, open_accounts, live_accounts]
+    description: "Number of active credit accounts on the bureau report."
+
+  - id: total_outstanding
+    label: "Total Outstanding"
+    section: bureau
+    kind: raw
+    type: decimal
+    role: measure
+    default_agg: sum
+    unit: INR
+    synonyms: [cib_tot_os, outstanding, total_os, current_balance]
+    description: "Total outstanding across active accounts, in INR."
+
+  - id: existing_emi_monthly
+    label: "Existing Monthly EMIs"
+    section: bureau
+    kind: raw
+    type: decimal
+    role: measure
+    default_agg: avg
+    unit: INR
+    required_for_mapping: true
+    synonyms: [cib_emi_obl, monthly_emi_obligations, existing_obligations, emi_obligation, obligations]
+    description: "Sum of existing monthly EMI obligations, in INR (0 if none)."
+
+  - id: oldest_account_age_months
+    label: "Oldest Account Age (months)"
+    section: bureau
+    kind: raw
+    type: integer
+    role: measure
+    default_agg: avg
+    unit: months
+    synonyms: [cib_old_acc_mths, credit_vintage, credit_history_length, oldest_tradeline_age]
+    description: "Age of the oldest credit account; null if new-to-credit."
+
+  - id: card_utilization_pct
+    label: "Card Utilisation %"
+    section: bureau
+    kind: raw
+    type: decimal
+    role: measure
+    default_agg: avg
+    unit: pct
+    synonyms: [cib_cc_util, credit_card_utilization, cc_utilisation, utilization]
+    description: "Credit card utilisation percentage; null if no cards."
+
+  - id: dpd30_count_l12m
+    label: "30+ DPD (last 12m)"
+    section: bureau
+    kind: raw
+    type: integer
+    role: measure
+    default_agg: avg
+    synonyms: [dpd30_12m, dpd30_l12m, times_30_dpd, thirty_plus_dpd]
+    description: "Number of 30+ days-past-due instances in the last 12 months."
+
+  - id: dpd90_count_l12m
+    label: "90+ DPD (last 12m)"
+    section: bureau
+    kind: raw
+    type: integer
+    role: measure
+    default_agg: avg
+    synonyms: [dpd90_12m, dpd90_l12m, times_90_dpd, ninety_plus_dpd]
+    description: "Number of 90+ days-past-due instances in the last 12 months."
+
+  - id: enquiries_l6m
+    label: "Enquiries (last 6m)"
+    section: bureau
+    kind: raw
+    type: integer
+    role: measure
+    default_agg: avg
+    synonyms: [enq_6m, enquiries_6m, inquiries_l6m, hard_enquiries]
+    description: "Number of credit enquiries in the last 6 months."
+
+  - id: has_writeoff
+    label: "Write-off History"
+    section: bureau
+    kind: raw
+    type: boolean
+    role: dimension
+    synonyms: [wo_flg, writeoff_flag, written_off, suit_filed_wilful_default]
+    description: "Whether any account was ever written off or settled."
+
+  # ---------------------------------------------------------------- banking
+  - id: bank_months_analysed
+    label: "Months Analysed"
+    section: banking
+    kind: raw
+    type: integer
+    role: measure
+    default_agg: avg
+    unit: months
+    synonyms: [bs_mths, months_analysed, statement_months, months_analyzed]
+    description: "Number of months of bank statement analysed."
+
+  - id: avg_monthly_balance
+    label: "Average Monthly Balance"
+    section: banking
+    kind: raw
+    type: decimal
+    role: measure
+    default_agg: avg
+    unit: INR
+    synonyms: [bs_amb, amb, avg_balance, average_monthly_balance]
+    description: "Average monthly balance across analysed months, in INR."
+
+  - id: avg_monthly_credits
+    label: "Average Monthly Credits"
+    section: banking
+    kind: raw
+    type: decimal
+    role: measure
+    default_agg: avg
+    unit: INR
+    synonyms: [bs_avg_cr, avg_credits, monthly_inflow, average_credits]
+    description: "Average monthly credits (inflows), in INR."
+
+  - id: avg_monthly_debits
+    label: "Average Monthly Debits"
+    section: banking
+    kind: raw
+    type: decimal
+    role: measure
+    default_agg: avg
+    unit: INR
+    synonyms: [bs_avg_dr, avg_debits, monthly_outflow, average_debits]
+    description: "Average monthly debits (outflows), in INR."
+
+  - id: bounce_count
+    label: "Bounces"
+    section: banking
+    kind: raw
+    type: integer
+    role: measure
+    default_agg: sum
+    synonyms: [bs_bnc_cnt, cheque_bounces, emi_bounces, inward_returns, bounces]
+    description: "Number of cheque/ECS/NACH bounces in the analysed period."
+
+  - id: salary_regularity
+    label: "Salary Regularity"
+    section: banking
+    kind: raw
+    type: enum
+    values: [REGULAR, IRREGULAR, NOT_APPLICABLE]
+    role: dimension
+    synonyms: [bs_sal_reg, salary_credit_pattern, salary_consistency]
+    description: "Whether salary credits were regular (NOT_APPLICABLE for self-employed)."
+
+  # ---------------------------------------------------------------- decision
+  - id: decision_date
+    label: "Decision Date"
+    section: decision
+    kind: raw
+    type: date
+    role: dimension
+    required_for_mapping: true
+    synonyms: [dcsn_dt, decided_on, sanction_date, sanc_dt, approval_date]
+    description: "Date the credit decision was made; null if undecided."
+
+  - id: decision_mode
+    label: "Decision Mode"
+    section: decision
+    kind: raw
+    type: enum
+    values: [AUTO, MANUAL]
+    role: dimension
+    synonyms: [dcsn_mode, decision_type, underwriting_mode, stp_flag]
+    description: "Whether the decision was automated (STP) or manual."
+
+  - id: rejection_reason
+    label: "Rejection Reason"
+    section: decision
+    kind: raw
+    type: enum
+    values: [LOW_CIBIL, HIGH_FOIR, WRITEOFF_HISTORY, KYC_FAILED, INSUFFICIENT_INCOME, POLICY_OTHER]
+    role: dimension
+    synonyms: [rej_rsn, decline_reason, reject_reason, reason_code]
+    description: "Primary reason for rejection; null unless rejected."
+
+  - id: approved_amount
+    label: "Approved Amount"
+    section: decision
+    kind: raw
+    type: decimal
+    role: measure
+    default_agg: sum
+    unit: INR
+    required_for_mapping: true
+    synonyms: [sanc_amt, sanctioned_amount, sanction_amount, approved_loan_amount]
+    description: "Sanctioned loan amount, in INR; null unless approved."
+
+  - id: interest_rate_pct
+    label: "Interest Rate %"
+    section: decision
+    kind: raw
+    type: decimal
+    role: measure
+    default_agg: avg
+    unit: pct
+    synonyms: [roi, interest_rate, rate_of_interest, apr]
+    description: "Annual interest rate offered, in percent."
+
+  - id: approved_tenure_months
+    label: "Approved Tenure (months)"
+    section: decision
+    kind: raw
+    type: integer
+    role: measure
+    default_agg: avg
+    unit: months
+    synonyms: [sanc_tnr, sanctioned_tenure, approved_tenure, tenure]
+    description: "Sanctioned repayment tenure, in months."
+
+  - id: approved_emi
+    label: "Approved EMI"
+    section: decision
+    kind: raw
+    type: decimal
+    role: measure
+    default_agg: avg
+    unit: INR
+    synonyms: [emi_amt, emi_amount, emi, instalment_amount]
+    description: "Monthly instalment on the sanctioned loan, in INR."
+
+  # ---------------------------------------------------------------- disbursement
+  - id: disbursement_date
+    label: "Disbursement Date"
+    section: disbursement
+    kind: raw
+    type: date
+    role: dimension
+    synonyms: [disb_dt, disbursed_on, disbursal_date]
+    description: "Date the loan was disbursed; null unless disbursed."
+
+  - id: disbursed_amount
+    label: "Disbursed Amount"
+    section: disbursement
+    kind: raw
+    type: decimal
+    role: measure
+    default_agg: sum
+    unit: INR
+    required_for_mapping: true
+    synonyms: [disb_amt, disbursal_amount, amount_disbursed]
+    description: "Gross amount disbursed, in INR; null unless disbursed."
+
+  - id: processing_fee
+    label: "Processing Fee"
+    section: disbursement
+    kind: raw
+    type: decimal
+    role: measure
+    default_agg: sum
+    unit: INR
+    synonyms: [pf_amt, processing_charges, pf, upfront_fee]
+    description: "Processing fee deducted at disbursement, in INR."
+
+  # ================================================================ calculated
+  - id: age_at_application
+    label: "Age at Application"
+    section: applicant
+    kind: calculated
+    type: integer
+    role: measure
+    default_agg: avg
+    unit: years
+    formula: "YEARS_BETWEEN(date_of_birth, application_date)"
+    description: "Completed years of age on the application date."
+
+  - id: age_band
+    label: "Age Band"
+    section: applicant
+    kind: calculated
+    type: enum
+    values: ["<25", "25-34", "35-44", "45-54", "55+"]
+    role: dimension
+    formula: >-
+      CASE(age_at_application is None, None,
+           age_at_application < 25, '<25', age_at_application < 35, '25-34',
+           age_at_application < 45, '35-44', age_at_application < 55, '45-54', '55+')
+    description: "Age at application, banded."
+
+  - id: income_band
+    label: "Income Band"
+    section: employment
+    kind: calculated
+    type: enum
+    values: ["<25K", "25-50K", "50K-1L", "1-2L", "2L+"]
+    role: dimension
+    formula: >-
+      CASE(net_income_monthly is None, None,
+           net_income_monthly < 25000, '<25K', net_income_monthly < 50000, '25-50K',
+           net_income_monthly < 100000, '50K-1L', net_income_monthly < 200000, '1-2L', '2L+')
+    description: "Net monthly income, banded."
+
+  - id: is_new_to_credit
+    label: "New to Credit"
+    section: bureau
+    kind: calculated
+    type: boolean
+    role: dimension
+    formula: "cibil_score is None"
+    description: "True when the applicant has no CIBIL score."
+
+  - id: cibil_band
+    label: "CIBIL Band"
+    section: bureau
+    kind: calculated
+    type: enum
+    values: [NTC, "<650", "650-699", "700-749", "750-799", "800+"]
+    role: dimension
+    formula: >-
+      CASE(cibil_score is None, 'NTC', cibil_score < 650, '<650', cibil_score < 700, '650-699',
+           cibil_score < 750, '700-749', cibil_score < 800, '750-799', '800+')
+    description: "CIBIL score, banded; NTC when there is no score."
+
+  - id: has_delinquency_l12m
+    label: "Delinquent (last 12m)"
+    section: bureau
+    kind: calculated
+    type: boolean
+    role: dimension
+    formula: "dpd30_count_l12m > 0 or dpd90_count_l12m > 0"
+    description: "Any 30+ or 90+ DPD in the last 12 months."
+
+  - id: foir_pct
+    label: "FOIR % (existing)"
+    section: decision
+    kind: calculated
+    type: decimal
+    role: measure
+    default_agg: avg
+    unit: pct
+    formula: "existing_emi_monthly / net_income_monthly * 100"
+    description: "Existing EMI obligations as a percentage of net monthly income."
+
+  - id: post_loan_foir_pct
+    label: "FOIR % (post-loan)"
+    section: decision
+    kind: calculated
+    type: decimal
+    role: measure
+    default_agg: avg
+    unit: pct
+    formula: "(existing_emi_monthly + COALESCE(approved_emi, 0)) / net_income_monthly * 100"
+    description: "Existing plus approved EMI as a percentage of net monthly income."
+
+  - id: loan_to_income_ratio
+    label: "Loan to Annual Income"
+    section: decision
+    kind: calculated
+    type: decimal
+    role: measure
+    default_agg: avg
+    unit: ratio
+    formula: "requested_amount / (net_income_monthly * 12)"
+    description: "Requested amount divided by annual net income."
+
+  - id: bank_credit_to_income_pct
+    label: "Bank Credits to Income %"
+    section: banking
+    kind: calculated
+    type: decimal
+    role: measure
+    default_agg: avg
+    unit: pct
+    formula: "avg_monthly_credits / net_income_monthly * 100"
+    description: "Average monthly bank credits as a percentage of declared net income."
+
+  - id: balance_to_emi_ratio
+    label: "Balance to EMI"
+    section: banking
+    kind: calculated
+    type: decimal
+    role: measure
+    default_agg: avg
+    unit: ratio
+    formula: "avg_monthly_balance / approved_emi"
+    description: "Average monthly balance divided by the approved EMI."
+
+  - id: is_approved
+    label: "Approved"
+    section: decision
+    kind: calculated
+    type: boolean
+    role: dimension
+    formula: "application_status in ['APPROVED', 'DISBURSED']"
+    description: "Application was approved (including those since disbursed)."
+
+  - id: is_rejected
+    label: "Rejected"
+    section: decision
+    kind: calculated
+    type: boolean
+    role: dimension
+    formula: "application_status == 'REJECTED'"
+    description: "Application was rejected."
+
+  - id: is_disbursed
+    label: "Disbursed"
+    section: disbursement
+    kind: calculated
+    type: boolean
+    role: dimension
+    formula: "application_status == 'DISBURSED'"
+    description: "Loan was disbursed."
+
+  - id: approved_to_requested_pct
+    label: "Approved to Requested %"
+    section: decision
+    kind: calculated
+    type: decimal
+    role: measure
+    default_agg: avg
+    unit: pct
+    formula: "approved_amount / requested_amount * 100"
+    description: "Approved amount as a percentage of the requested amount."
+
+  - id: net_disbursed_amount
+    label: "Net Disbursed Amount"
+    section: disbursement
+    kind: calculated
+    type: decimal
+    role: measure
+    default_agg: sum
+    unit: INR
+    formula: "disbursed_amount - COALESCE(processing_fee, 0)"
+    description: "Disbursed amount net of processing fee, in INR."
+
+  - id: processing_fee_pct
+    label: "Processing Fee %"
+    section: disbursement
+    kind: calculated
+    type: decimal
+    role: measure
+    default_agg: avg
+    unit: pct
+    formula: "processing_fee / disbursed_amount * 100"
+    description: "Processing fee as a percentage of the disbursed amount."
+
+  - id: kyc_tat_days
+    label: "KYC TAT (days)"
+    section: kyc
+    kind: calculated
+    type: integer
+    role: measure
+    default_agg: avg
+    unit: days
+    formula: "DATE_DIFF_DAYS(application_date, kyc_verified_date)"
+    description: "Days from application to KYC verification."
+
+  - id: decision_tat_days
+    label: "Decision TAT (days)"
+    section: decision
+    kind: calculated
+    type: integer
+    role: measure
+    default_agg: avg
+    unit: days
+    formula: "DATE_DIFF_DAYS(application_date, decision_date)"
+    description: "Days from application to credit decision."
+
+  - id: disbursement_tat_days
+    label: "Disbursement TAT (days)"
+    section: disbursement
+    kind: calculated
+    type: integer
+    role: measure
+    default_agg: avg
+    unit: days
+    formula: "DATE_DIFF_DAYS(decision_date, disbursement_date)"
+    description: "Days from credit decision to disbursement."
+
+  - id: end_to_end_tat_days
+    label: "End-to-end TAT (days)"
+    section: disbursement
+    kind: calculated
+    type: integer
+    role: measure
+    default_agg: avg
+    unit: days
+    formula: "DATE_DIFF_DAYS(application_date, disbursement_date)"
+    description: "Days from application to disbursement."
+
+  - id: application_month
+    label: "Application Month"
+    section: application
+    kind: calculated
+    type: date
+    role: dimension
+    formula: "MONTH_START(application_date)"
+    description: "First day of the application's month (for monthly trends)."
