@@ -1,0 +1,47 @@
+# Lending KPIs as aggregate formulas over lending_rpt.applications (Part 3 spec §2).
+version: 1
+metrics:
+  - {id: applications, label: "Applications", formula: "COUNT()", unit: count, better: higher, group: volume,
+     description: "Applications received in the period."}
+  - {id: decided, label: "Decided", formula: "COUNT_IF(decision_date is not None)", unit: count, better: neutral,
+     group: volume, description: "Applications with a credit decision."}
+  - {id: approved, label: "Approved", formula: "COUNT_IF(is_approved)", unit: count, better: higher, group: volume,
+     description: "Approved applications (including those disbursed)."}
+  - {id: rejected, label: "Rejected", formula: "COUNT_IF(is_rejected)", unit: count, better: lower, group: volume,
+     description: "Rejected applications."}
+  - {id: disbursed_count, label: "Disbursed loans", formula: "COUNT_IF(is_disbursed)", unit: count, better: higher,
+     group: volume, description: "Loans disbursed."}
+  - {id: approval_rate, label: "Approval rate", formula: "approved / decided * 100", unit: pct, better: higher,
+     group: rates, description: "Approved ÷ decided applications."}
+  - {id: rejection_rate, label: "Rejection rate", formula: "rejected / decided * 100", unit: pct, better: lower,
+     group: rates, description: "Rejected ÷ decided applications."}
+  - {id: disbursement_conversion, label: "Disbursement conversion", formula: "disbursed_count / approved * 100",
+     unit: pct, better: higher, group: rates, description: "Disbursed ÷ approved applications."}
+  - {id: kyc_failure_rate, label: "KYC failure rate", formula: "COUNT_IF(kyc_status == 'FAILED') / applications * 100",
+     unit: pct, better: lower, group: rates, description: "Applications whose KYC failed."}
+  - {id: auto_decision_share, label: "Auto-decision share", formula: "COUNT_IF(decision_mode == 'AUTO') / decided * 100",
+     unit: pct, better: higher, group: rates, description: "Decisions made automatically (STP)."}
+  - {id: ntc_share, label: "New-to-credit share", formula: "COUNT_IF(is_new_to_credit) / applications * 100",
+     unit: pct, better: neutral, group: rates, description: "Applicants without a CIBIL score."}
+  - {id: requested_amount_total, label: "Amount requested", formula: "SUM(requested_amount)", unit: INR,
+     better: higher, group: amounts, description: "Total loan amount requested."}
+  - {id: sanctioned_amount_total, label: "Amount sanctioned", formula: "SUM(approved_amount)", unit: INR,
+     better: higher, group: amounts, description: "Total amount approved."}
+  - {id: disbursed_amount_total, label: "Amount disbursed", formula: "SUM(disbursed_amount)", unit: INR,
+     better: higher, group: amounts, description: "Total amount disbursed."}
+  - {id: avg_ticket_size, label: "Average ticket size", formula: "disbursed_amount_total / disbursed_count",
+     unit: INR, better: neutral, group: amounts, description: "Average disbursed loan amount."}
+  - {id: processing_fee_income, label: "Processing fee income", formula: "SUM(processing_fee)", unit: INR,
+     better: higher, group: amounts, description: "Processing fees collected at disbursement."}
+  - {id: avg_cibil, label: "Average CIBIL score", formula: "AVG(cibil_score)", unit: score, better: higher,
+     group: credit, description: "Average score of applicants with a CIBIL score."}
+  - {id: avg_interest_rate, label: "Average interest rate", formula: "AVG_IF(interest_rate_pct, is_disbursed)",
+     unit: pct, better: neutral, group: credit, description: "Average rate on disbursed loans."}
+  - {id: avg_post_loan_foir, label: "Average FOIR (approved)", formula: "AVG_IF(post_loan_foir_pct, is_approved)",
+     unit: pct, better: lower, group: credit, description: "Average post-loan FOIR of approved applications."}
+  - {id: avg_decision_tat, label: "Decision TAT", formula: "AVG(decision_tat_days)", unit: days, better: lower,
+     group: turnaround, description: "Average days from application to decision."}
+  - {id: avg_disbursement_tat, label: "Disbursement TAT", formula: "AVG(disbursement_tat_days)", unit: days,
+     better: lower, group: turnaround, description: "Average days from decision to disbursement."}
+  - {id: avg_end_to_end_tat, label: "End-to-end TAT", formula: "AVG(end_to_end_tat_days)", unit: days,
+     better: lower, group: turnaround, description: "Average days from application to disbursement."}

@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     secret_key: str | None = Field(None, validation_alias="BANKREPORTER_SECRET_KEY", repr=False)
     db_path: Path = Field(ROOT / "data" / "bankreporter.sqlite", validation_alias="BANKREPORTER_DB")
     catalog_path: Path = Field(ROOT / "catalog" / "fields.yaml", validation_alias="BANKREPORTER_CATALOG")
+    metrics_path: Path = Field(ROOT / "catalog" / "metrics.yaml", validation_alias="BANKREPORTER_METRICS")
+    defaults_dir: Path = Field(ROOT / "catalog" / "defaults", validation_alias="BANKREPORTER_DEFAULTS")
     openai_api_key: str | None = Field(None, validation_alias="OPENAI_API_KEY", repr=False)
     llm_model: str = Field("gpt-4.1-mini", validation_alias=AliasChoices("MAPPER_LLM_MODEL"))
     b_accept: float = Field(0.85, validation_alias="MAPPER_B_ACCEPT")
