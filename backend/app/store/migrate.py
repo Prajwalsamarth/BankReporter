@@ -3,7 +3,7 @@ from sqlalchemy import Engine, inspect
 from sqlalchemy.schema import CreateTable
 
 ADDED_COLUMNS = {"connection": "client_id", "report_template": "client_id", "dashboard": "client_id"}
-OWNED = ("report_template", "dashboard")
+REBUILT = ("connection", "report_template", "dashboard")   # tables that lose a global UNIQUE on name
 
 
 def _unique_on_name(conn, table: str) -> bool:
@@ -16,16 +16,26 @@ def _unique_on_name(conn, table: str) -> bool:
 
 
 def _rebuild(engine: Engine, table: str) -> None:
-    """Recreate `table` from the current model (no global UNIQUE on name), copying every row, atomically."""
+    """Recreate `table` from the current model (no global UNIQUE on name), copying every row, atomically.
+
+    Order matters: create <t>_new, copy, drop <t>, rename <t>_new to <t>. Renaming the *old* table instead would
+    make SQLite rewrite other tables' foreign keys (mapping_run -> connection) to point at the dropped copy.
+    The AUTOINCREMENT counter is carried over so ids of deleted rows are never reused.
+    """
     from app.store import Base
     model = Base.metadata.tables[table]
     with engine.connect() as conn:
         old = [c["name"] for c in inspect(conn).get_columns(table)]
+        seq = conn.exec_driver_sql("SELECT seq FROM sqlite_sequence WHERE name = ?", (table,)).scalar()
     create = str(CreateTable(model).compile(engine)).strip()
+    prefix = f"CREATE TABLE {table} ("
+    assert create.startswith(prefix), create[:60]
+    create = f'CREATE TABLE "{table}_new" (' + create[len(prefix):]
     cols = ", ".join(f'"{c}"' for c in old if c in model.c)
-    script = (f'BEGIN; ALTER TABLE "{table}" RENAME TO "{table}_old"; {create}; '
-              f'INSERT INTO "{table}" ({cols}) SELECT {cols} FROM "{table}_old"; '
-              f'DROP TABLE "{table}_old"; COMMIT;')
+    keep_seq = (f'UPDATE sqlite_sequence SET seq = max(seq, {int(seq)}) WHERE name = "{table}"; '
+                if seq is not None else "")
+    script = (f'BEGIN; {create}; INSERT INTO "{table}_new" ({cols}) SELECT {cols} FROM "{table}"; '
+              f'DROP TABLE "{table}"; ALTER TABLE "{table}_new" RENAME TO "{table}"; {keep_seq}COMMIT;')
     raw = engine.raw_connection()
     try:
         driver = raw.driver_connection
@@ -42,7 +52,7 @@ def _rebuild(engine: Engine, table: str) -> None:
 def upgrade(engine: Engine) -> None:
     with engine.connect() as conn:
         tables = set(inspect(conn).get_table_names())
-        rebuild = [t for t in OWNED if t in tables and _unique_on_name(conn, t)]
+        rebuild = [t for t in REBUILT if t in tables and _unique_on_name(conn, t)]
     for table in rebuild:
         _rebuild(engine, table)
     with engine.begin() as conn:

@@ -57,7 +57,7 @@ class Connection(Base):
     __table_args__ = (Index("ux_connection_client", "client_id", unique=True),
                       {"sqlite_autoincrement": True})   # never reuse ids of deleted rows
     id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(100), unique=True)
+    name: Mapped[str] = mapped_column(String(100))     # not unique: a clash would reveal another client's name
     dialect: Mapped[str] = mapped_column(String(20))
     url_encrypted: Mapped[str]
     schemas: Mapped[list] = mapped_column(JSON, default=list)

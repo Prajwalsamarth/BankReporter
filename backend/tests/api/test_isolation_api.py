@@ -94,12 +94,14 @@ def test_client_user_can_edit_own_connection_but_not_move_it(app, world):
         assert r.status_code == 403
 
 
-def test_rename_conflict_does_not_name_other_clients(app, world):
+def test_renaming_to_another_clients_connection_name_reveals_nothing(app, world):
+    """Names are not unique across clients, so a rename behaves the same whether the name is taken or not."""
     with signed_in(app, NOVA) as nova:
-        r = nova.put(f"/api/connections/{world['nova']['cid']}",
-                     json=client1_body(name="Bharat Finserv", port=1, client_id=None))
-        assert r.status_code == 409
-        assert r.json()["detail"] == "the name 'Bharat Finserv' can't be used; choose another"
+        taken = nova.put(f"/api/connections/{world['nova']['cid']}",
+                         json=client1_body(name="Bharat Finserv", port=1, client_id=None))
+        unused = nova.put(f"/api/connections/{world['nova']['cid']}",
+                          json=client1_body(name="Zzz", port=1, client_id=None))
+        assert taken.status_code == unused.status_code == 200
 
 
 CHART = {"id": "c1", "type": "chart", "chart": "bar",

@@ -81,3 +81,30 @@ def test_upgrade_twice_changes_nothing(tmp_path):
     before = snapshot()
     Store(url)
     assert snapshot() == before
+
+
+def test_upgrade_drops_global_unique_connection_names_and_keeps_references(tmp_path):
+    url = old_store_url(tmp_path)
+    con = sqlite3.connect(url.removeprefix("sqlite:///"))
+    con.executescript("""INSERT INTO connection VALUES (9, 'Gone', 'mysql', 'e', '[]', '2026-10-01 00:00:00', '2026-10-01 00:00:00');
+                         DELETE FROM connection WHERE id = 9;""")     # sqlite_sequence for connection is now 9
+    con.close()
+    store = Store(url)
+    with store.session() as s:
+        nova, bharat = Client(name="NovaBank", code="novabank"), Client(name="Bharat Finserv", code="bharat")
+        s.add_all([nova, bharat])
+        s.flush()
+        s.get(Connection, 1).client_id = nova.id
+        twin = Connection(name="NovaBank", dialect="mysql", url_encrypted="x", client_id=bharat.id)
+        s.add(twin)
+        s.commit()                                   # same name, different client: allowed
+        assert twin.id == 10                         # ids of deleted rows are never reused
+    con = sqlite3.connect(url.removeprefix("sqlite:///"))
+    try:
+        mapping_run_sql = con.execute("SELECT sql FROM sqlite_master WHERE name = 'mapping_run'").fetchone()[0]
+        leftovers = con.execute("SELECT name FROM sqlite_master WHERE name LIKE '%\\_old' ESCAPE '\\' "
+                                "OR name LIKE '%\\_new' ESCAPE '\\'").fetchall()
+    finally:
+        con.close()
+    assert "connection_old" not in mapping_run_sql and 'REFERENCES connection' in mapping_run_sql.replace('"', "")
+    assert leftovers == []
