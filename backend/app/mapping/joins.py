@@ -4,6 +4,9 @@ from collections.abc import Callable
 from app.mapping.names import norm
 from app.mapping.types import ColumnProfile, ColumnRef, Join, JoinPlan, SchemaInfo, TableInfo
 
+# Surrogate-key names shared by unrelated tables: same-name links need a declared FK.
+GENERIC_KEYS = {"id", "uuid", "guid", "pk", "key", "row_id", "rowid"}
+
 
 def plan_joins(info: SchemaInfo, profiles: list[ColumnProfile],
                key_scorer: Callable[[ColumnRef], float]) -> JoinPlan:
@@ -52,6 +55,8 @@ def _one_to_one_column(t: TableInfo, grain: TableInfo, unique: set[ColumnRef]) -
         if (fk.ref_table, fk.ref_schema) == (grain.name, grain.schema) and fk.ref_columns == grain.pk:
             if ColumnRef(t.schema, t.name, fk.columns[0]) in unique:
                 return fk.columns[0]
+    if norm(grain.pk[0]) in GENERIC_KEYS:
+        return None
     for c in t.columns:
         if norm(c.name) == norm(grain.pk[0]) and ColumnRef(t.schema, t.name, c.name) in unique:
             return c.name
@@ -65,6 +70,8 @@ def _many_to_one_column(grain: TableInfo, t: TableInfo) -> str | None:
     for fk in grain.fks:
         if (fk.ref_table, fk.ref_schema) == (t.name, t.schema) and fk.ref_columns == t.pk:
             return fk.columns[0]
+    if norm(t.pk[0]) in GENERIC_KEYS:
+        return None
     for c in grain.columns:
         if c.name != grain.pk[0] and norm(c.name) == norm(t.pk[0]):
             return c.name

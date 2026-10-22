@@ -192,3 +192,75 @@ def test_patch_response_uses_schema_key(run, api):
     e = api.patch(f"/api/mapping-runs/{detail['run']['id']}/entries/city", json={"action": "accept"}).json()
     assert e["source"] == {"schema": "los", "table": "customer", "column": "city"}
     assert all("schema" in c for c in e["candidates"])
+
+
+def test_ids_are_never_reused_after_delete(api):
+    # Regression (review I3): SQLite rowid reuse let a stale background task write into a new run.
+    first = api.post("/api/connections", json=client1_body(name="a")).json()["id"]
+    api.delete(f"/api/connections/{first}")
+    second = api.post("/api/connections", json=client1_body(name="b")).json()["id"]
+    assert second > first
+
+
+def test_background_run_for_deleted_connection_is_ignored(settings):
+    from app.api import service
+    from app.store import Connection, MappingRun, Store
+    store = Store(settings.db_url)
+    with store.session() as s:
+        c = Connection(name="gone", dialect="postgresql", url_encrypted="x", schemas=["los"])
+        s.add(c)
+        s.flush()
+        run = MappingRun(connection_id=c.id, catalog_version=1, layers="A", status="running")
+        s.add(run)
+        s.commit()
+        rid = run.id
+        s.delete(c)
+        s.commit()
+    service.execute_run(store, rid, None, settings, None, None)   # must not raise
+    with store.session() as s:
+        assert s.get(MappingRun, rid) is None
+
+
+def test_stale_running_runs_marked_failed_at_startup(settings):
+    from app.store import Connection, MappingRun, Store
+    store = Store(settings.db_url)
+    with store.session() as s:
+        c = Connection(name="c", dialect="postgresql", url_encrypted="x", schemas=["los"])
+        s.add(c)
+        s.flush()
+        s.add(MappingRun(connection_id=c.id, catalog_version=1, layers="A", status="running"))
+        s.commit()
+    create_app(settings)
+    with store.session() as s:
+        run = s.query(MappingRun).one()
+        assert run.status == "failed" and "restarted" in run.error
+
+
+def test_preview_limit_validated(api):
+    assert api.get("/api/mapping-runs/1/preview?limit=-5").status_code == 422
+
+
+def test_settings_repr_hides_secret_key(settings):
+    assert settings.secret_key not in repr(settings)
+
+
+@pytest.mark.db
+def test_user_choice_marks_decided_by_user(run, api):
+    _, detail = run
+    url = f"/api/mapping-runs/{detail['run']['id']}/entries"
+    api.patch(f"{url}/card_utilization_pct", json={"action": "not_available"})
+    e = api.patch(f"{url}/card_utilization_pct", json={"action": "choose", "schema": "los",
+                                                     "table": "bureau_report", "column": "card_utilization_pct"}).json()
+    assert e["decided_by"] == "user" and e["status"] == "overridden"
+
+
+@pytest.mark.db
+def test_disabled_join_is_kept_for_re_enabling(run, api):
+    _, detail = run
+    rid, plan = detail["run"]["id"], detail["join_plan"]
+    kyc = next(j for j in plan["joins"] if j["table"] == "kyc_verification")
+    reduced = {**plan, "joins": [j for j in plan["joins"] if j is not kyc],
+               "excluded": plan["excluded"] + [{"table": "los.kyc_verification", "reason": "disabled by user", "join": kyc}]}
+    after = api.put(f"/api/mapping-runs/{rid}/join-plan", json={"join_plan": reduced, "confirmed": True}).json()
+    assert {"table": "los.kyc_verification", "reason": "disabled by user", "join": kyc} in after["join_plan"]["excluded"]
+    assert any("not in the join plan" in b for b in after["blockers"])

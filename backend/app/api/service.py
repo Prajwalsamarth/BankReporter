@@ -23,12 +23,40 @@ def _ref_dict(ref: ColumnRef | None) -> dict | None:
     return {"schema": ref.schema, "table": ref.table, "column": ref.column} if ref else None
 
 
-def execute_run(store, run_id: int, catalog: Catalog, settings, embedder, llm) -> None:
-    """Background task: analyse the client DB and store the suggestions on the run."""
+def _mark_failed(store, run_id: int, message: str) -> None:
     with store.session() as s:
         run = s.get(MappingRun, run_id)
-        url = decrypt_url(run.connection.url_encrypted, settings.secret_key)
+        if run is not None and run.status == "running":
+            run.status, run.error, run.finished_at = "failed", message, datetime.now(UTC)
+            s.commit()
+
+
+def execute_run(store, run_id: int, catalog: Catalog, settings, embedder, llm) -> None:
+    """Background task: analyse the client DB and store the suggestions on the run.
+
+    Tolerates the run (or its connection) being deleted meanwhile, and never leaves it 'running'.
+    """
+    with store.session() as s:
+        run = s.get(MappingRun, run_id)
+        if run is None or run.status != "running" or run.connection is None:
+            return
+        connection_id = run.connection_id
+        try:
+            url = decrypt_url(run.connection.url_encrypted, settings.secret_key)
+        except Exception as exc:
+            url = None
+            error = str(exc)
         schemas, layers = list(run.connection.schemas), run.layers
+    if url is None:
+        _mark_failed(store, run_id, error)
+        return
+    try:
+        _execute(store, run_id, connection_id, url, schemas, layers, catalog, settings, embedder, llm)
+    except Exception as exc:
+        _mark_failed(store, run_id, mask_secrets(f"{type(exc).__name__}: {exc}", url))
+
+
+def _execute(store, run_id, connection_id, url, schemas, layers, catalog, settings, embedder, llm) -> None:
     engine = create_engine(url)
     try:
         analysis = analyse_database(engine, schemas, catalog, layers, effective_synonyms(catalog),
@@ -49,6 +77,8 @@ def execute_run(store, run_id: int, catalog: Catalog, settings, embedder, llm) -
     result = analysis.result
     with store.session() as s:
         run = s.get(MappingRun, run_id)
+        if run is None or run.status != "running" or run.connection_id != connection_id:
+            return   # deleted (or replaced) while we were analysing
         run.profiles = [dump(p) for p in analysis.profiles]
         run.join_plan = dump(analysis.plan)
         run.warnings = list(result.warnings)
@@ -155,6 +185,7 @@ def _choose(run: MappingRun, entry: MappingEntry, ref: ColumnRef | None, catalog
     entry.score = next((c["score"] for c in entry.candidates
                         if (c["schema"], c["table"], c["column"]) == (ref.schema, ref.table, ref.column)), 1.0)
     entry.reason, entry.warnings, entry.status = "chosen by user", [], "overridden"
+    entry.decided_by = "user"
 
 
 def current_info(url: str, run: MappingRun):

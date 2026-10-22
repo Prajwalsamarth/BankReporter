@@ -141,3 +141,24 @@ def test_llm_disabled_recorded_even_when_layer_a_decides_everything():
     result = run_matching(profiles(), PLAN, CATALOG, "ABC", effective_synonyms(CATALOG),
                           embedder=Embedder(encode=keyword_encoder), llm=None)
     assert result.warnings == ["llm_disabled"]
+
+
+def test_columns_of_tables_outside_the_join_plan_are_not_matched():
+    # Regression (review I2): an excluded one-to-many table's `city` stole the city field.
+    profs = profiles() + [prof("CITY", "string", table="REPAYMENT"), prof("city", "string", table="T")]
+    result = run_matching(profs, PLAN, CATALOG, "A", effective_synonyms(CATALOG), embedder=None, llm=None)
+    assert result.mappings["city"].source == R("city")
+    assert all(ref.table != "REPAYMENT" for ref in result.column_decisions)
+
+
+def test_llm_batches_are_per_schema_and_table():
+    no_syn = {f.id: [] for f in CATALOG.raw_fields}
+    a = ColumnProfile(ColumnRef("s1", "T", "CIB_SCR"), "X", "integer", False, None, 0.0, 10, False)
+    b = ColumnProfile(ColumnRef("s2", "T", "NET_MTH_INC"), "X", "decimal", False, None, 0.0, 10, False)
+    plan = JoinPlan(ColumnRef("s1", "T", "APPL_NO"), [Join("s2", "T", "one_to_one", [("APPL_NO", "APPL_NO")])])
+    grain = ColumnProfile(ColumnRef("s1", "T", "APPL_NO"), "X", "string", True, None, 0.0, 10, True)
+    key = ColumnProfile(ColumnRef("s2", "T", "APPL_NO"), "X", "string", True, None, 0.0, 10, True)
+    chat = OneShotChat([])
+    run_matching([grain, key, a, b], plan, CATALOG, "ABC", no_syn, Embedder(encode=keyword_encoder),
+                 LlmMatcher(chat, "m", sleep=lambda s: None), b_accept=1.01)
+    assert chat.calls == 2

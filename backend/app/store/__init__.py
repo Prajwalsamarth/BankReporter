@@ -17,6 +17,7 @@ class Base(DeclarativeBase):
 
 class Connection(Base):
     __tablename__ = "connection"
+    __table_args__ = {"sqlite_autoincrement": True}   # never reuse ids of deleted rows
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(100), unique=True)
     dialect: Mapped[str] = mapped_column(String(20))
@@ -29,6 +30,7 @@ class Connection(Base):
 
 class MappingRun(Base):
     __tablename__ = "mapping_run"
+    __table_args__ = {"sqlite_autoincrement": True}   # never reuse ids of deleted rows
     id: Mapped[int] = mapped_column(primary_key=True)
     connection_id: Mapped[int] = mapped_column(ForeignKey("connection.id"))
     catalog_version: Mapped[int]
@@ -58,7 +60,7 @@ class MappingEntry(Base):
     source_table: Mapped[str | None] = mapped_column(default=None)
     source_column: Mapped[str | None] = mapped_column(default=None)
     score: Mapped[float] = mapped_column(default=0.0)
-    decided_by: Mapped[str] = mapped_column(String(4), default="none")
+    decided_by: Mapped[str] = mapped_column(String(8), default="none")   # A|B|C|key|user|none
     reason: Mapped[str] = mapped_column(default="")
     warnings: Mapped[list] = mapped_column(JSON, default=list)
     candidates: Mapped[list] = mapped_column(JSON, default=list)
@@ -69,6 +71,7 @@ class MappingEntry(Base):
 
 class Publication(Base):
     __tablename__ = "publication"
+    __table_args__ = {"sqlite_autoincrement": True}   # never reuse ids of deleted rows
     id: Mapped[int] = mapped_column(primary_key=True)
     run_id: Mapped[int] = mapped_column(ForeignKey("mapping_run.id"))
     schema: Mapped[str] = mapped_column(String(64))

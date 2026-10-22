@@ -47,6 +47,13 @@ RESPONSE_SCHEMA = {
 }
 
 
+class RetryableError(Exception):
+    """Transient failure (timeout, 5xx, 429): worth another attempt."""
+
+
+RETRYABLE = (RetryableError, TimeoutError, ConnectionError)
+
+
 class ChatClient(Protocol):
     def complete(self, messages: list[dict], schema: dict, model: str) -> tuple[str, int]:
         """Return (JSON content, total tokens)."""
@@ -58,12 +65,20 @@ class OpenAIChatClient:
         self._client = OpenAI(api_key=api_key, timeout=timeout, max_retries=0)
 
     def complete(self, messages: list[dict], schema: dict, model: str) -> tuple[str, int]:
-        resp = self._client.chat.completions.create(
+        import openai
+        try:
+            resp = self._create(messages, schema, model)
+        except (openai.APITimeoutError, openai.APIConnectionError, openai.RateLimitError,
+                openai.InternalServerError) as exc:
+            raise RetryableError(str(exc)) from exc
+        return resp.choices[0].message.content, resp.usage.total_tokens if resp.usage else 0
+
+    def _create(self, messages, schema, model):
+        return self._client.chat.completions.create(
             model=model, temperature=0, messages=messages,
             response_format={"type": "json_schema",
                              "json_schema": {"name": "column_mapping", "strict": True, "schema": schema}},
         )
-        return resp.choices[0].message.content, resp.usage.total_tokens if resp.usage else 0
 
 
 class FileCache:
@@ -129,6 +144,8 @@ def _parse(content: str) -> list[dict]:
     for c in cols:
         if not isinstance(c, dict) or not required <= set(c):
             raise ValueError("response column entry is missing keys")
+        if isinstance(c["confidence"], bool) or not isinstance(c["confidence"], (int, float)):
+            raise ValueError("confidence must be a number")
     return cols
 
 
@@ -182,8 +199,10 @@ class LlmMatcher:
                 content, tokens = self.client.complete(messages, RESPONSE_SCHEMA, self.model)
                 result.tokens += tokens
                 answers = _parse(content)
-            except Exception:  # timeouts, 5xx, 429, malformed or off-schema JSON: all retried
+            except (*RETRYABLE, ValueError, KeyError, TypeError):   # transient, or malformed JSON
                 continue
+            except Exception:   # auth, bad request, programming errors: retrying won't help
+                return None
             if key:
                 self.cache.put(key, content)
             return answers

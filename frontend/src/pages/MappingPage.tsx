@@ -13,8 +13,9 @@ const statusColor = { running: "blue", ready: "teal", failed: "red", published: 
 
 function errorText(err: unknown): string {
   if (err instanceof ApiError) {
-    const d = err.detail as { blockers?: string[]; error?: string } | string;
+    const d = err.detail as { blockers?: string[]; error?: string } | string | (string | { msg?: string })[];
     if (typeof d === "string") return d;
+    if (Array.isArray(d)) return d.map((x) => (typeof x === "string" ? x : x.msg ?? JSON.stringify(x))).join("; ");
     if (d?.blockers) return `Cannot publish: ${d.blockers.join("; ")}`;
     if (d?.error) return d.error;
   }
@@ -27,7 +28,7 @@ function counts(entries: Entry[]) {
   const by = (k: Entry["decided_by"]) => mapped.filter((e) => e.decided_by === k).length;
   return {
     summary: `Mapped ${mapped.length}/${entries.length} · Required ${required.filter((e) => e.source && e.status !== "not_available").length}/${required.length}`,
-    layers: `A ${by("A")} · B ${by("B")} · C ${by("C")} · key ${by("key")} · none ${entries.length - mapped.length}`,
+    layers: `A ${by("A")} · B ${by("B")} · C ${by("C")} · key ${by("key")} · user ${by("user")} · none ${entries.length - mapped.length}`,
   };
 }
 

@@ -105,3 +105,35 @@ def test_source_outside_join_plan_is_rejected(catalog):
     plan = JoinPlan(ColumnRef("s", "a", "id"), [])
     with pytest.raises(ValueError, match="s.other is not part of the join plan"):
         build_base_select(info, plan, {"application_id": plan.grain, "city": ColumnRef("s", "other", "x")}, catalog)
+
+
+@pytest.mark.db
+def test_publish_quotes_mixed_case_and_reserved_identifiers(pg_engine):
+    # Regression (review I4): unquoted identifiers broke the row-count check on Postgres.
+    from app.mapping.types import JoinPlan
+    with pg_engine.begin() as conn:
+        conn.execute(text('CREATE SCHEMA IF NOT EXISTS "QuoteTest"'))
+        conn.execute(text('CREATE TABLE IF NOT EXISTS "QuoteTest"."LoanApp" ("Id" VARCHAR(10) PRIMARY KEY, "user" VARCHAR(20))'))
+        conn.execute(text('''INSERT INTO "QuoteTest"."LoanApp" VALUES ('A1', 'Pune') ON CONFLICT DO NOTHING'''))
+    try:
+        info = introspect(pg_engine, ["QuoteTest"])
+        plan = JoinPlan(ColumnRef("QuoteTest", "LoanApp", "Id"), [])
+        sources = {"application_id": plan.grain, "city": ColumnRef("QuoteTest", "LoanApp", "user")}
+        stmts = build_view_ddl("postgresql", EVAL, build_base_select(info, plan, sources, CATALOG), CATALOG)
+        assert publish(pg_engine, stmts, plan.grain, EVAL).row_count == 1
+    finally:
+        drop_eval_views(pg_engine)
+        with pg_engine.begin() as conn:
+            conn.execute(text('DROP SCHEMA "QuoteTest" CASCADE'))
+
+
+def test_datetime_source_is_cast_to_date(catalog):
+    from app.mapping.types import ColumnInfo, JoinPlan, SchemaInfo, TableInfo
+    from sqlalchemy.dialects import postgresql
+    t = TableInfo("s", "a", (ColumnInfo("id", "VARCHAR(10)", "string", False),
+                             ColumnInfo("applied", "TIMESTAMP", "date", True)), ("id",), (), 1)
+    plan = JoinPlan(ColumnRef("s", "a", "id"), [])
+    sel = build_base_select(SchemaInfo("postgresql", (t,)), plan,
+                            {"application_id": plan.grain, "application_date": ColumnRef("s", "a", "applied")}, catalog)
+    sql = str(sel.compile(dialect=postgresql.dialect()))
+    assert "CAST(g.applied AS DATE) AS application_date" in sql

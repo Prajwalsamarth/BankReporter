@@ -2,7 +2,7 @@
 from dataclasses import dataclass
 
 from sqlalchemy import (
-    Boolean, Date, Engine, Integer, Numeric, Select, String, and_, cast, column, null, select, table, text,
+    Boolean, Date, Engine, Integer, Numeric, Select, String, and_, cast, column, func, null, select, table, text,
 )
 from sqlalchemy.exc import DBAPIError
 
@@ -18,7 +18,9 @@ SQL_TYPES = {"string": lambda: String(255), "enum": lambda: String(255), "intege
 
 
 class PublishError(Exception):
-    pass
+    def __init__(self, message: str, permission: bool = False):
+        super().__init__(message)
+        self.permission = permission
 
 
 @dataclass
@@ -58,10 +60,11 @@ def build_base_select(info: SchemaInfo, plan: JoinPlan, sources: dict[str, Colum
         if src is None:
             label = f"{ref.schema}.{ref.table}" if ref.schema else ref.table
             raise ValueError(f"{label} is not part of the join plan")
-        col_type = info.table(ref.schema, ref.table).column(ref.column).type
+        col = info.table(ref.schema, ref.table).column(ref.column)
         target = "string" if f.type == "enum" else f.type
         expr = src.c[ref.column]
-        if col_type != target and not (target == "boolean" and info.dialect == "mysql"):
+        datetime_for_date = target == "date" and col.sql_type.upper() != "DATE"   # drop time of day
+        if (col.type != target or datetime_for_date) and not (target == "boolean" and info.dialect == "mysql"):
             expr = cast(expr, SQL_TYPES[f.type]())
         columns.append(expr.label(f.id))
     return select(*columns).select_from(joined)
@@ -76,34 +79,44 @@ def _sql(stmt, dialect) -> str:
     return str(stmt.compile(dialect=dialect, compile_kwargs={"literal_binds": True}))
 
 
-def build_view_ddl(dialect: str, schema: str, base: Select, catalog: Catalog) -> list[str]:
+def _dialect(name: str):
     from sqlalchemy.dialects import mysql, postgresql
-    d = {"postgresql": postgresql.dialect(), "mysql": mysql.dialect()}[dialect]
+    return {"postgresql": postgresql.dialect(), "mysql": mysql.dialect()}[name]
+
+
+def qualified(dialect, schema: str, name: str) -> str:
+    q = dialect.identifier_preparer
+    return f"{q.quote_schema(schema)}.{q.quote(name)}"
+
+
+def build_view_ddl(dialect: str, schema: str, base: Select, catalog: Catalog) -> list[str]:
+    d = _dialect(dialect)
     base_view = table(BASE_VIEW, *[column(f.id) for f in catalog.raw_fields], schema=schema)
     base_sql = _sql(base, d)
     calc_sql = _sql(_calculated_select(base_view, catalog), d)
+    sch, bv, cv = d.identifier_preparer.quote_schema(schema), qualified(d, schema, BASE_VIEW), qualified(d, schema, CALC_VIEW)
     if dialect == "postgresql":
-        return [f"CREATE SCHEMA IF NOT EXISTS {schema}",
-                f"DROP VIEW IF EXISTS {schema}.{CALC_VIEW}",
-                f"DROP VIEW IF EXISTS {schema}.{BASE_VIEW}",
-                f"CREATE VIEW {schema}.{BASE_VIEW} AS {base_sql}",
-                f"CREATE VIEW {schema}.{CALC_VIEW} AS {calc_sql}"]
-    return [f"CREATE DATABASE IF NOT EXISTS {schema}",
-            f"CREATE OR REPLACE VIEW {schema}.{BASE_VIEW} AS {base_sql}",
-            f"CREATE OR REPLACE VIEW {schema}.{CALC_VIEW} AS {calc_sql}"]
+        return [f"CREATE SCHEMA IF NOT EXISTS {sch}",
+                f"DROP VIEW IF EXISTS {cv}",
+                f"DROP VIEW IF EXISTS {bv}",
+                f"CREATE VIEW {bv} AS {base_sql}",
+                f"CREATE VIEW {cv} AS {calc_sql}"]
+    return [f"CREATE DATABASE IF NOT EXISTS {sch}",
+            f"CREATE OR REPLACE VIEW {bv} AS {base_sql}",
+            f"CREATE OR REPLACE VIEW {cv} AS {calc_sql}"]
 
 
-def _grain_count_sql(grain: ColumnRef) -> str:
-    return f"SELECT COUNT(*) FROM {grain.schema + '.' if grain.schema else ''}{grain.table}"
+def _count(conn, schema: str | None, name: str) -> int:
+    return conn.execute(select(func.count()).select_from(table(name, schema=schema))).scalar_one()
 
 
 def _verify(conn, grain: ColumnRef, schema: str) -> int:
-    views = conn.execute(text(f"SELECT COUNT(*) FROM {schema}.{BASE_VIEW}")).scalar_one()
-    rows = conn.execute(text(_grain_count_sql(grain))).scalar_one()
+    views = _count(conn, schema, BASE_VIEW)
+    rows = _count(conn, grain.schema, grain.table)
     if views != rows:
         raise PublishError(f"row count check failed: view has {views} rows, grain table has {rows}; "
                            "a join is duplicating application rows")
-    conn.execute(text(f"SELECT * FROM {schema}.{CALC_VIEW} LIMIT 1")).fetchall()
+    conn.execute(select(text("*")).select_from(table(CALC_VIEW, schema=schema)).limit(1)).fetchall()
     return views
 
 
@@ -132,10 +145,11 @@ def publish(engine: Engine, statements: list[str], grain: ColumnRef, schema: str
                     count = _verify(conn, grain, schema)
                 except Exception:
                     for v in (CALC_VIEW, BASE_VIEW):
-                        conn.execute(text(f"DROP VIEW IF EXISTS {schema}.{v}"))
+                        conn.execute(text(f"DROP VIEW IF EXISTS {qualified(engine.dialect, schema, v)}"))
                     raise
     except DBAPIError as exc:
-        raise PublishError(_permission_message(exc, engine, schema) or str(exc.orig)) from exc
+        permission = _permission_message(exc, engine, schema)
+        raise PublishError(permission or str(exc.orig), permission=permission is not None) from exc
     return PublishResult(count, ddl)
 
 

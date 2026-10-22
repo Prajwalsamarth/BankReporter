@@ -14,7 +14,7 @@ const matches: Record<Filter, (e: Entry) => boolean> = {
   required: (e) => e.required,
 };
 
-const byColor = { A: "blue", B: "grape", C: "orange", key: "gray", none: "gray" } as const;
+const byColor = { A: "blue", B: "grape", C: "orange", key: "gray", user: "teal", none: "gray" } as const;
 
 export interface FieldActions {
   accept: (e: Entry) => void;

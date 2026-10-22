@@ -22,7 +22,10 @@ def run_matching(profiles: list[ColumnProfile], plan: JoinPlan, catalog: Catalog
                  b_accept: float = 0.85, b_margin: float = 0.05) -> MatchResult:
     keys = key_columns(plan)
     fixed = {GRAIN_FIELD: (plan.grain, "grain table primary key")}
-    matchable = [p for p in profiles if p.ref not in keys and p.type != "other"]
+    plan_tables = {(plan.grain.schema, plan.grain.table)} | {(j.schema, j.table) for j in plan.joins}
+    # Columns of tables outside the plan can't be read by the view, so they must not compete for fields.
+    matchable = [p for p in profiles if p.ref not in keys and p.type != "other"
+                 and (p.ref.schema, p.ref.table) in plan_tables]
     warnings: list[str] = ["llm_disabled"] if "C" in layers and llm is None else []
 
     decisions: dict[ColumnRef, Decision] = match_rules(matchable, catalog, synonyms)
@@ -32,7 +35,7 @@ def run_matching(profiles: list[ColumnProfile], plan: JoinPlan, catalog: Catalog
     if "B" in layers and embedder is not None and rest:
         use_llm = "C" in layers and llm is not None
         shortlists = embedder.shortlist_many(rest, catalog, synonyms)
-        to_llm: dict[str, list[ColumnProfile]] = {}
+        to_llm: dict[tuple, list[ColumnProfile]] = {}
         for p in rest:
             cands = shortlists[p.ref]
             if not cands:
@@ -43,9 +46,9 @@ def run_matching(profiles: list[ColumnProfile], plan: JoinPlan, catalog: Catalog
                 decisions[p.ref] = Decision(top.field_id, top.score, "B", f"embedding similarity {top.score:.2f}",
                                             [] if confident else ["low_confidence"])
             else:
-                to_llm.setdefault(p.ref.table, []).append(p)
-        for table, cols in to_llm.items():
-            table_columns = [p.ref.column for p in profiles if p.ref.table == table]
+                to_llm.setdefault((p.ref.schema, p.ref.table), []).append(p)
+        for (schema, table), cols in to_llm.items():
+            table_columns = [p.ref.column for p in profiles if (p.ref.schema, p.ref.table) == (schema, table)]
             res = llm.choose(table, table_columns, cols, shortlists, catalog)
             decisions.update(res.decisions)
             calls, tokens = calls + res.calls, tokens + res.tokens

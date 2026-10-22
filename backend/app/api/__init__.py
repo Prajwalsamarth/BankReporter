@@ -12,6 +12,17 @@ from app.store import Store
 KEYGEN = 'python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"'
 
 
+def _fail_interrupted_runs(store: Store) -> None:
+    """Runs left 'running' by a previous server process will never finish."""
+    from datetime import UTC, datetime
+    from app.store import MappingRun
+    with store.session() as s:
+        for run in s.query(MappingRun).filter_by(status="running"):
+            run.status, run.finished_at = "failed", datetime.now(UTC)
+            run.error = "server restarted while this run was in progress; re-run the mapping"
+        s.commit()
+
+
 def create_app(settings: Settings, embedder: Embedder | None = None, llm: LlmMatcher | None = None) -> FastAPI:
     if not settings.secret_key:
         raise RuntimeError(f"BANKREPORTER_SECRET_KEY is not set; generate one with: {KEYGEN}")
@@ -26,6 +37,7 @@ def create_app(settings: Settings, embedder: Embedder | None = None, llm: LlmMat
     app.state.settings = settings
     app.state.catalog = load_catalog(settings.catalog_path)
     app.state.store = Store(settings.db_url)
+    _fail_interrupted_runs(app.state.store)
     app.state.embedder = cache(lambda: embedder or Embedder())   # model loads on first run
     if llm is None and settings.openai_api_key:
         llm = LlmMatcher(OpenAIChatClient(settings.openai_api_key), settings.llm_model)

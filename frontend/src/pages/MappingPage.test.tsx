@@ -138,3 +138,68 @@ describe("MappingPage", () => {
     expect(within(panel.parentElement!).getByText("foir_pct, post_loan_foir_pct")).toBeInTheDocument();
   });
 });
+
+describe("MappingPage join plan editing (review I1)", () => {
+  it("disables a non-last join, keeps it for re-enabling, and leaves the other joins intact", async () => {
+    const base = runDetail();
+    const [cust, bureau] = base.join_plan!.joins;
+    // three joins: disable the FIRST one (customer)
+    const kyc = { schema: "los", table: "kyc_verification", kind: "one_to_one" as const, on: [["application_id", "application_id"]] as [string, string][] };
+    const detail = runDetail({ join_plan: { ...base.join_plan!, joins: [cust, bureau, kyc] } });
+    let current = detail;
+    const calls = mockApi({
+      "GET /api/catalog": { sections: [{ id: "application", label: "Application" }, { id: "bureau", label: "Bureau (CIBIL)" }] },
+      "GET /api/connections": [{ id: 7, name: "NovaBank", dialect: "postgresql", url_masked: "x", schemas: ["los"], needs_password: false }],
+      "GET /api/connections/7/mapping-runs/latest": () => structuredClone(current),
+      "PUT /api/mapping-runs/3/join-plan": (_url: string, init?: RequestInit) => {
+        const body = JSON.parse(String(init!.body));
+        current = { ...current, join_plan: body.join_plan, run: { ...current.run, join_plan_confirmed: true } };
+        return structuredClone(current);   // new objects, like a real refetch
+      },
+    });
+    renderWithProviders(<MappingPage />, { route: "/connections/7/mapping", path: "/connections/:id/mapping" });
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Edit join plan" }));
+    await user.click(screen.getByRole("checkbox", { name: "los.customer" }));
+    await user.click(screen.getByRole("button", { name: "Confirm join plan" }));
+
+    await waitFor(() => expect(calls.some((c) => c.method === "PUT")).toBe(true));
+    const sent = calls.find((c) => c.method === "PUT")!.body as { join_plan: { joins: { table: string }[]; excluded: { table: string; reason: string; join?: unknown }[] } };
+    expect(sent.join_plan.joins.map((j) => j.table)).toEqual(["bureau_report", "kyc_verification"]);
+    expect(sent.join_plan.excluded).toContainEqual({ table: "los.customer", reason: "disabled by user", join: cust });
+
+    // after the refetch (new object identities) the remaining joins are still shown
+    expect(await screen.findByText(/LEFT JOIN los\.bureau_report/)).toBeInTheDocument();
+    expect(screen.getByText(/LEFT JOIN los\.kyc_verification/)).toBeInTheDocument();
+    expect(screen.queryByText(/LEFT JOIN los\.customer/)).not.toBeInTheDocument();
+
+    // and the disabled join can be switched back on
+    await user.click(screen.getByRole("button", { name: "Edit join plan" }));
+    expect(screen.getByRole("checkbox", { name: "los.customer" })).not.toBeChecked();
+    await user.click(screen.getByRole("checkbox", { name: "los.customer" }));
+    await user.click(screen.getByRole("button", { name: "Confirm join plan" }));
+    await waitFor(() => {
+      const last = calls.filter((c) => c.method === "PUT").at(-1)!.body as typeof sent;
+      expect(last.join_plan.joins.map((j) => j.table)).toEqual(["bureau_report", "kyc_verification", "customer"]);
+      expect(last.join_plan.excluded.find((x) => x.table === "los.customer")).toBeUndefined();
+    });
+  });
+
+  it("formats list-shaped validation errors", async () => {
+    setup(undefined, {
+      "PUT /api/mapping-runs/3/join-plan": () => new Response(JSON.stringify({
+        detail: ["los.customer.full_name is not unique; joining on it would duplicate application rows"],
+      }), { status: 422 }),
+    });
+    await userEvent.setup().click(await screen.findByRole("button", { name: "Confirm join plan" }));
+    expect(await screen.findByText("los.customer.full_name is not unique; joining on it would duplicate application rows"))
+      .toBeInTheDocument();
+  });
+
+  it("shows user-chosen sources with a user chip", async () => {
+    const d = runDetail();
+    d.entries[1] = { ...d.entries[1], decided_by: "user", status: "overridden", reason: "chosen by user" };
+    setup(d);
+    expect(await screen.findByText("user")).toBeInTheDocument();
+  });
+});

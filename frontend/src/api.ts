@@ -53,7 +53,7 @@ export interface Entry {
   required: boolean;
   source: ColumnRef | null;
   score: number;
-  decided_by: "A" | "B" | "C" | "key" | "none";
+  decided_by: "A" | "B" | "C" | "key" | "user" | "none";
   reason: string;
   warnings: string[];
   candidates: Candidate[];
@@ -61,7 +61,9 @@ export interface Entry {
 }
 
 export interface Join { schema: string | null; table: string; kind: "one_to_one" | "many_to_one"; on: [string, string][] }
-export interface JoinPlan { grain: ColumnRef; joins: Join[]; excluded: { table: string; reason: string }[] }
+/** An excluded table; `join` is present when the user disabled a join, so it can be re-enabled. */
+export interface Excluded { table: string; reason: string; join?: Join }
+export interface JoinPlan { grain: ColumnRef; joins: Join[]; excluded: Excluded[] }
 
 export interface Run {
   id: number;

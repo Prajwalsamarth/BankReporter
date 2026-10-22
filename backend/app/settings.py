@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     """Environment configuration. Secrets are read here and nowhere else."""
     model_config = SettingsConfigDict(extra="ignore", env_file=ROOT / ".env")
 
-    secret_key: str | None = Field(None, validation_alias="BANKREPORTER_SECRET_KEY")
+    secret_key: str | None = Field(None, validation_alias="BANKREPORTER_SECRET_KEY", repr=False)
     db_path: Path = Field(ROOT / "data" / "bankreporter.sqlite", validation_alias="BANKREPORTER_DB")
     catalog_path: Path = Field(ROOT / "catalog" / "fields.yaml", validation_alias="BANKREPORTER_CATALOG")
     openai_api_key: str | None = Field(None, validation_alias="OPENAI_API_KEY", repr=False)

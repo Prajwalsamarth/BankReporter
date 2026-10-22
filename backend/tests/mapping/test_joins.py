@@ -157,3 +157,14 @@ def test_declared_fks_outweigh_same_name_links():
                                [("application_id", "loan_application", "application_id")])
     info, profiles = make("los", tables)
     assert plan_joins(info, profiles, no_key_signal).grain.table == "loan_application"
+
+
+def test_generic_id_names_do_not_create_same_name_joins():
+    # Regression (review M4): every table with a surrogate `id` was joined one-to-one on id = id.
+    info, profiles = make("s", {
+        "applications": (["id"], 100, [("id", True), ("customer_id", False)], []),
+        "audit": (["id"], 100, [("id", True), ("msg", False)], []),
+    })
+    plan = plan_joins(info, profiles, lambda ref: 1.0 if ref.table == "applications" else 0.0)
+    assert plan.grain.table == "applications"
+    assert plan.joins == []

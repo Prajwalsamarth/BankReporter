@@ -1,4 +1,4 @@
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, Response
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Request, Response
 from sqlalchemy import create_engine, inspect
 from sqlalchemy.exc import IntegrityError
 
@@ -224,7 +224,7 @@ def put_join_plan(rid: int, body: S.JoinPlanIn, request: Request):
             plan = load_join_plan(body.join_plan)
         except (KeyError, TypeError, ValueError) as exc:
             raise HTTPException(422, f"malformed join plan: {exc}") from None
-        engine, info = service.current_info(_url(run.connection, ctx.settings.secret_key), run)
+        engine, info = _client_info(run, _url(run.connection, ctx.settings.secret_key))
         engine.dispose()
         errors = validate_join_plan(plan, info, [load_profile(p) for p in run.profiles])
         if errors:
@@ -245,17 +245,28 @@ def _base_select(run: MappingRun, info, catalog):
         return build_base_select(info, load_join_plan(run.join_plan), sources, catalog)
     except ValueError as exc:
         raise HTTPException(409, str(exc)) from None
+    except StopIteration:
+        raise HTTPException(409, "a mapped table or column no longer exists in the client database; "
+                                 "re-run the mapping") from None
+
+
+def _client_info(run: MappingRun, url: str):
+    """Engine + fresh introspection, or a clear 502 when the client DB is unreachable."""
+    try:
+        return service.current_info(url, run)
+    except Exception as exc:
+        raise HTTPException(502, f"cannot read the client database: {mask_secrets(str(exc), url)}") from None
 
 
 @router.get("/mapping-runs/{rid}/preview", response_model=S.PreviewOut)
-def preview_run(rid: int, request: Request, limit: int = 20):
+def preview_run(rid: int, request: Request, limit: int = Query(20, ge=1, le=200)):
     ctx = _ctx(request)
     with ctx.store.session() as s:
         run = _ready_run(s, rid)
         url = _url(run.connection, ctx.settings.secret_key)
-        engine, info = service.current_info(url, run)
+        engine, info = _client_info(run, url)
         try:
-            columns, rows = preview(engine, _base_select(run, info, ctx.catalog), ctx.catalog, min(limit, 200))
+            columns, rows = preview(engine, _base_select(run, info, ctx.catalog), ctx.catalog, limit)
         except HTTPException:
             raise
         except Exception as exc:
@@ -275,12 +286,16 @@ def publish_run(rid: int, request: Request):
         if found:
             raise HTTPException(409, {"blockers": found})
         url = _url(run.connection, ctx.settings.secret_key)
-        engine, info = service.current_info(url, run)
+        engine, info = _client_info(run, url)
+        statements = []
         try:
             statements = build_view_ddl(info.dialect, schema, _base_select(run, info, ctx.catalog), ctx.catalog)
             result = publish(engine, statements, load_join_plan(run.join_plan).grain, schema)
         except PublishError as exc:
-            raise HTTPException(500, {"error": mask_secrets(str(exc), url)}) from None
+            message = mask_secrets(str(exc), url)
+            if exc.permission:
+                raise HTTPException(409, message) from None
+            raise HTTPException(500, {"error": message, "ddl": ";\n".join(statements)}) from None
         finally:
             engine.dispose()
         s.add(Publication(run_id=run.id, schema=schema, ddl=result.ddl, row_count=result.row_count))

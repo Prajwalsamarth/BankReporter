@@ -155,3 +155,18 @@ def test_refresh_mode_skips_cache_reads_but_writes(tmp_path):
     assert len(chat.requests) == 1 and r.decisions[SCR.ref].field_id == "enquiries_l6m"
     again = matcher(FakeChat(), cache=cache).choose("T", TABLE_COLUMNS, [SCR, ENQ], SHORTLISTS, CATALOG)
     assert again.decisions[SCR.ref].field_id == "enquiries_l6m"   # the refreshed answer was stored
+
+
+def test_non_retryable_errors_fail_fast():
+    m = LlmMatcher(FakeChat(PermissionError("401 invalid api key")), model="m", sleep=lambda s: None)
+    r = m.choose("T", TABLE_COLUMNS, [SCR, ENQ], SHORTLISTS, CATALOG)
+    assert r.calls == 1
+    assert all("llm_failed" in d.warnings for d in r.decisions.values())
+
+
+def test_bad_confidence_in_response_is_retried_not_fatal():
+    bad = {"columns": [dict(column="CIB_SCR", field_id="cibil_score", confidence="high", reason="r",
+                            suspected_transform=None)]}
+    good = answer(("CIB_SCR", "cibil_score", 0.9, None), ("ENQ_6M", "enquiries_l6m", 0.9, None))
+    r = matcher(FakeChat(bad, good)).choose("T", TABLE_COLUMNS, [SCR, ENQ], SHORTLISTS, CATALOG)
+    assert r.calls == 2 and r.decisions[SCR.ref].score == 0.9
