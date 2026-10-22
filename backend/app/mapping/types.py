@@ -131,21 +131,21 @@ class MatchResult:
     llm_tokens: int = 0
 
 
-def _jsonable(value):
+def jsonable(value):
     if isinstance(value, (date, datetime)):
         return value.isoformat()[:10] if type(value) is date else value.isoformat()
     if isinstance(value, Decimal):
         return float(value)
     if isinstance(value, dict):
-        return {k: _jsonable(v) for k, v in value.items()}
+        return {k: jsonable(v) for k, v in value.items()}
     if isinstance(value, (list, tuple)):
-        return [_jsonable(v) for v in value]
+        return [jsonable(v) for v in value]
     return value
 
 
 def dump(obj) -> dict:
     """JSON-safe dict of a dataclass (dates as ISO strings, Decimals as floats)."""
-    return _jsonable(asdict(obj))
+    return jsonable(asdict(obj))
 
 
 def _ref(d: dict | None) -> ColumnRef | None:
