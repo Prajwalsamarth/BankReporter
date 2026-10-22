@@ -11,7 +11,7 @@ import {
 import { BLOCK_TYPES, cloneBlock, describeBlock, newBlock } from "../blocks";
 import { BlockSettings } from "../components/BlockSettings";
 import { BlockView } from "../components/BlockView";
-import { useMe } from "../auth";
+import { useCurrentRender, useMe } from "../auth";
 import { NoClient } from "../components/NoClient";
 import { RenderError } from "../components/RenderError";
 import { SharingChoice } from "../components/SharingChoice";
@@ -75,6 +75,8 @@ export function ReportEditorPage() {
     },
   });
 
+  const current = useCurrentRender(preview.data);
+
   if (!draft || !catalog.data || !metrics.data) return <Loader />;
   const blocks = draft.blocks;
   const update = (patch: Partial<Draft>) => { setDraft({ ...draft, ...patch }); setDirty(true); };
@@ -82,7 +84,7 @@ export function ReportEditorPage() {
   const move = (i: number, d: number) => { const next = [...blocks]; const [b] = next.splice(i, 1); next.splice(i + d, 0, b); setBlocks(next); };
   const add = (type: BlockType) => { const b = newBlock(type); setBlocks([...blocks, b]); setSelectedId(b.id); };
   const selected = blocks.find((b) => b.id === selectedId) ?? null;
-  const results = new Map((preview.data?.blocks ?? []).map((r) => [r.id, r]));
+  const results = new Map((current?.blocks ?? []).map((r) => [r.id, r]));
 
   return (
     <Stack>

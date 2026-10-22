@@ -91,4 +91,24 @@ describe("DashboardsPage", () => {
     await waitFor(() => expect(calls.find((c) => c.method === "POST" && c.path === "/api/dashboards")?.body)
       .toMatchObject({ shared: false }));
   });
+
+  it("refreshes who is signed in when a render comes back for another client (switched in another tab)", async () => {
+    let meCalls = 0;
+    const bharat = { ...meAdmin, client: meAdmin.clients[0] };
+    const calls = mockApi({
+      "GET /api/auth/me": () => (++meCalls === 1 ? meAdmin : bharat),
+      "GET /api/dashboards": [{ id: 1, name: "Lending KPIs", default_period: { preset: "last_month" }, updated_at: "", shared: true, editable: true, owner: null }],
+      "GET /api/dashboards/1": { ...board, shared: true, editable: true, owner: null },
+      "GET /api/catalog": { sections: [], fields: FIELDS },
+      "GET /api/metrics": METRICS,
+      "POST /api/dashboards/1/render": (u: string, init?: RequestInit) => ({
+        ...echoRender(u, { body: JSON.stringify({ blocks: board.tiles.map((t) => t.block) }), method: init?.method }),
+        client: { id: 2, name: "Bharat Finserv" },          // the server's acting client is now Bharat
+      }),
+    });
+    renderWithProviders(<DashboardsPage />, { route: "/dashboards/1", path: "/dashboards/:id" });
+    await waitFor(() => expect(meCalls).toBe(2));                      // stale header: refetch who we are
+    expect(await screen.findByText("rendered b1")).toBeInTheDocument(); // shown once header and data agree
+    expect(calls.filter((c) => c.path === "/api/dashboards/1/render").length).toBe(2);
+  });
 });

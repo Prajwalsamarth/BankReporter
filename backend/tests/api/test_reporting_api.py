@@ -5,7 +5,7 @@ import pytest
 from sqlalchemy import text
 
 from app.api import create_app
-from tests.api.conftest import PUBLISH_SCHEMA, client1_body, make_app, signed_in
+from tests.api.conftest import BHARAT_ID, NOVA_ID, PUBLISH_SCHEMA, client1_body, make_app, signed_in
 
 TODAY = date(2026, 10, 22)
 
@@ -122,3 +122,16 @@ def test_render_unpublished_client_is_409(rapi, pg_engine):
     rapi.post("/api/connections", json=client1_body())
     r = rapi.post("/api/render-blocks", json={"period": {"preset": "last_month"}, "blocks": [chart_block()]})
     assert r.status_code == 409 and r.json()["detail"] == "NovaBank has no published views; publish its mapping first"
+
+
+@pytest.fixture
+def bharat_connection_first(rapi):
+    """Bharat's connection takes id 1, so NovaBank's connection id differs from NovaBank's client id."""
+    assert rapi.post("/api/connections", json=client1_body(name="Bharat Finserv", port=1, client_id=BHARAT_ID)).status_code == 201
+
+
+@pytest.mark.db
+def test_render_names_the_client_it_was_made_for(rapi, bharat_connection_first, published_client):
+    assert published_client != NOVA_ID
+    out = rapi.post("/api/render-blocks", json={"period": {"preset": "last_month"}, "blocks": [chart_block()]}).json()
+    assert out["client"] == {"id": NOVA_ID, "name": "NovaBank"}     # the client, so a stale tab can detect a switch

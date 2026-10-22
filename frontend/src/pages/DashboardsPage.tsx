@@ -10,7 +10,7 @@ import {
 import { cloneBlock, newBlock, uid } from "../blocks";
 import { BlockSettings } from "../components/BlockSettings";
 import { BlockView } from "../components/BlockView";
-import { useMe } from "../auth";
+import { useCurrentRender, useMe } from "../auth";
 import { NoClient } from "../components/NoClient";
 import { OwnerBadge } from "../components/OwnerBadge";
 import { RenderError } from "../components/RenderError";
@@ -58,6 +58,7 @@ export function DashboardsPage() {
     placeholderData: keepPreviousData,
     retry: false,
   });
+  const current = useCurrentRender(rendered.data);
   const body = () => ({ name: board.data!.name, default_period: period ?? board.data!.default_period, tiles: shown });
   const save = useMutation({
     mutationFn: () => api<Dashboard>(`/dashboards/${id}`, { method: "PUT", json: body() }),
@@ -76,7 +77,7 @@ export function DashboardsPage() {
   const update = (next: Tile[]) => setTiles(next);
   const patchTile = (i: number, patch: Partial<Tile>) => update(shown.map((t, j) => (j === i ? { ...t, ...patch } : t)));
   const move = (i: number, d: number) => { const next = [...shown]; const [t] = next.splice(i, 1); next.splice(i + d, 0, t); update(next); };
-  const results = new Map((rendered.data?.blocks ?? []).map((r) => [r.id, r]));
+  const results = new Map((current?.blocks ?? []).map((r) => [r.id, r]));
   const tileBeingEdited = shown.find((t) => t.id === editingTile);
 
   return (

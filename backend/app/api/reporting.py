@@ -243,7 +243,7 @@ def _render(request: Request, scope: Scope, period_spec: dict, blocks: list[dict
             url = decrypt_url(conn.url_encrypted, st.settings.secret_key)
         except DecryptError as exc:
             raise HTTPException(409, f"{exc}; re-enter the password") from None
-        connection_id, name = conn.id, conn.name
+        name = conn.name
     try:
         period = resolve_period(period_spec, st.today())
     except PeriodError as exc:
@@ -262,7 +262,8 @@ def _render(request: Request, scope: Scope, period_spec: dict, blocks: list[dict
         raise HTTPException(502, f"cannot reach {name}: {mask_secrets(str(exc.orig), url)}") from None
     finally:
         engine.dispose()
-    return {"client": {"id": connection_id, "name": name}, "period": period.as_dict(),
+    # client.id is the scope's client, so a tab whose header shows another client can spot the switch
+    return {"client": {"id": scope.client_id, "name": name}, "period": period.as_dict(),
             "generated_at": ctx.generated_at.isoformat(), "blocks": results}
 
 

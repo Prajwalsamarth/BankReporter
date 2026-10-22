@@ -27,7 +27,7 @@ export const METRICS: Metric[] = [
 export const echoRender = (_url: string, init?: RequestInit) => {
   const { blocks } = JSON.parse(String(init!.body)) as { blocks: { id: string }[] };
   return {
-    client: { id: 7, name: "NovaBank" },
+    client: { id: 1, name: "NovaBank" },
     period: { start: "2026-09-01", end: "2026-09-30", prev_start: "2026-08-01", prev_end: "2026-08-31", label: "Sep 2026" },
     generated_at: "2026-10-22T18:05:00",
     blocks: blocks.map((b): BlockResult => ({ id: b.id, type: "heading", text: `rendered ${b.id}`, level: 2 })),

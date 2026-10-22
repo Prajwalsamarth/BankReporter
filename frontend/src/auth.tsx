@@ -3,7 +3,7 @@ import { Alert, Center, Loader } from "@mantine/core";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, type ReactNode } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
-import { ApiError, api, errorText, setUnauthorizedHandler, type Me } from "./api";
+import { ApiError, api, errorText, setUnauthorizedHandler, type Me, type Rendered } from "./api";
 
 export const ME_KEY = ["me"];
 
@@ -53,4 +53,20 @@ export function useUnauthorizedRedirect() {
     });
     return () => setUnauthorizedHandler(null);
   }, [qc, navigate]);
+}
+
+/**
+ * A render result names the client it was made for. If that isn't the client this tab shows in its header,
+ * the admin switched client in another tab (the choice lives on the shared session): refresh who we are,
+ * and treat the result as stale so one client's numbers never appear under another client's name.
+ */
+export function useCurrentRender(rendered: Rendered | undefined): Rendered | undefined {
+  const me = useMe();
+  const qc = useQueryClient();
+  const expected = me.data?.client?.id ?? null;
+  const stale = !!rendered && rendered.client.id !== expected;
+  useEffect(() => {
+    if (stale) qc.invalidateQueries({ queryKey: ME_KEY });
+  }, [stale, qc]);
+  return stale ? undefined : rendered;
 }

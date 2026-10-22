@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, type PeriodSpec, type Rendered, type ReportSummary } from "../api";
 import { BlockView } from "../components/BlockView";
-import { useMe } from "../auth";
+import { useCurrentRender, useMe } from "../auth";
 import { NoClient } from "../components/NoClient";
 import { OwnerBadge } from "../components/OwnerBadge";
 import { RenderError } from "../components/RenderError";
@@ -37,6 +37,7 @@ export function ReportsPage() {
     onSuccess: () => { setConfirming(false); setSelected(null); qc.invalidateQueries({ queryKey: ["reports"] }); },
   });
   const template = reports.data?.find((r) => r.id === selected);
+  const current = useCurrentRender(rendered.data);
 
   return (
     <Stack>
@@ -51,7 +52,7 @@ export function ReportsPage() {
             onChange={(v) => { setConfirming(false); setSelected(Number(v)); }} />
           {template && <OwnerBadge item={template} />}
           <PeriodSelect value={period} onChange={setPeriod} />
-          <Button variant="default" disabled={!rendered.data} onClick={() => window.print()}>Download PDF</Button>
+          <Button variant="default" disabled={!current} onClick={() => window.print()}>Download PDF</Button>
           {template && (template.editable ? (
             <Group gap="xs">
               <Anchor component={Link} to={`/reports/${template.id}/edit`} size="sm">Edit template</Anchor>
@@ -72,17 +73,17 @@ export function ReportsPage() {
       {reports.data?.length === 0 && <Text c="dimmed">No report templates yet.</Text>}
       {me.data && clientId === null && <NoClient />}
       {rendered.isError && <RenderError error={rendered.error} />}
-      {rendered.isFetching && !rendered.data && <Loader />}
-      {rendered.data && (
+      {rendered.isFetching && !current && <Loader />}
+      {current && (
         <div className="report-paper">
           <Group justify="space-between" mb="md">
             <div>
               <Text fw={700}>{template?.name}</Text>
-              <Text size="sm" c="dimmed">{rendered.data.client.name} · {rendered.data.period.label}</Text>
+              <Text size="sm" c="dimmed">{current.client.name} · {current.period.label}</Text>
             </div>
-            <Text size="xs" c="dimmed">Generated {rendered.data.generated_at.replace("T", " ").slice(0, 16)}</Text>
+            <Text size="xs" c="dimmed">Generated {current.generated_at.replace("T", " ").slice(0, 16)}</Text>
           </Group>
-          {rendered.data.blocks.map((b) => <div key={b.id} className="report-block"><BlockView result={b} /></div>)}
+          {current.blocks.map((b) => <div key={b.id} className="report-block"><BlockView result={b} /></div>)}
         </div>
       )}
     </Stack>

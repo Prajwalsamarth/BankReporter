@@ -7,7 +7,7 @@ import { meAdmin, meClient } from "../test/fixtures";
 import { mockApi, renderWithProviders } from "../test/render";
 
 const rendered = {
-  client: { id: 7, name: "NovaBank" },
+  client: { id: 1, name: "NovaBank" },
   period: { start: "2026-09-01", end: "2026-09-30", prev_start: "2026-08-01", prev_end: "2026-08-31", label: "Sep 2026" },
   generated_at: "2026-10-22T18:05:00",
   blocks: [{ id: "h1", type: "heading", text: "Personal Loans MIS — NovaBank", level: 1 },
