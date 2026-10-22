@@ -3,7 +3,7 @@
 from fastapi import HTTPException
 
 from app.auth.scope import Scope
-from app.store import Connection, MappingRun
+from app.store import Client, Connection, MappingRun
 
 ADMIN_ONLY = "Only the platform admin can do this"
 SHARED_READ_ONLY = "Shared items are read-only, use Save as"
@@ -35,3 +35,31 @@ def visible_run(s, scope: Scope, rid: int) -> MappingRun:
     except HTTPException:
         raise _not_found("mapping_run", rid) from None
     return run
+
+
+def visible_item(s, scope: Scope, model, id_: int):
+    """A report template or dashboard: shared items, the scope's own items, or anything for the admin."""
+    obj = s.get(model, id_)
+    if obj is None or not (scope.is_admin or obj.client_id is None or obj.client_id == scope.client_id):
+        raise _not_found(model.__tablename__, id_)
+    return obj
+
+
+def is_editable(scope: Scope, obj) -> bool:
+    return scope.is_admin or (obj.client_id is not None and obj.client_id == scope.client_id)
+
+
+def check_editable(scope: Scope, obj) -> None:
+    if not is_editable(scope, obj):
+        raise HTTPException(403, SHARED_READ_ONLY)
+
+
+def scope_connection(s, scope: Scope) -> Connection:
+    """The connection reports render against: the client user's own, or the admin's selected client's."""
+    if scope.client_id is None:
+        raise HTTPException(409, CHOOSE_CLIENT)
+    conn = s.query(Connection).filter_by(client_id=scope.client_id).first()
+    if conn is None:
+        client = s.get(Client, scope.client_id)
+        raise HTTPException(409, f"{client.name} has no published views; publish its mapping first")
+    return conn

@@ -63,17 +63,18 @@ def test_dashboard_tile_validation(rapi):
     assert {"block_id": "h", "messages": ["heading blocks are not allowed here"]} in errors
 
 
-def test_render_unknown_connection_and_bad_period(rapi):
+def test_render_needs_a_connection_and_a_valid_period(rapi):
     rid = rapi.get("/api/reports").json()[0]["id"]
-    assert rapi.post(f"/api/reports/{rid}/render", json={"connection_id": 999, "period": {"preset": "last_month"}}).status_code == 404
-    cid = rapi.post("/api/connections", json=client1_body()).json()["id"]
-    r = rapi.post(f"/api/reports/{rid}/render", json={"connection_id": cid, "period": {"preset": "custom", "start": "2026-05-01"}})
+    r = rapi.post(f"/api/reports/{rid}/render", json={"period": {"preset": "last_month"}})
+    assert r.status_code == 409 and r.json()["detail"] == "NovaBank has no published views; publish its mapping first"
+    rapi.post("/api/connections", json=client1_body())
+    r = rapi.post(f"/api/reports/{rid}/render", json={"period": {"preset": "custom", "start": "2026-05-01"}})
     assert r.status_code == 422 and "custom periods need start and end" in r.json()["detail"]
 
 
 def test_render_unreachable_client_is_502(rapi):
-    cid = rapi.post("/api/connections", json=client1_body(port=1, password="topsecret")).json()["id"]
-    r = rapi.post("/api/render-blocks", json={"connection_id": cid, "period": {"preset": "last_month"}, "blocks": [chart_block()]})
+    rapi.post("/api/connections", json=client1_body(port=1, password="topsecret"))
+    r = rapi.post("/api/render-blocks", json={"period": {"preset": "last_month"}, "blocks": [chart_block()]})
     assert r.status_code == 502 and "topsecret" not in r.text
 
 
@@ -93,14 +94,13 @@ def published_client(rapi, pg_engine):
 
 @pytest.mark.db
 def test_render_default_report_and_dashboard(rapi, published_client):
-    assert [c["id"] for c in rapi.get("/api/connections/published").json()] == [published_client]
     rid = rapi.get("/api/reports").json()[0]["id"]
-    out = rapi.post(f"/api/reports/{rid}/render", json={"connection_id": published_client, "period": {"preset": "last_month"}}).json()
+    out = rapi.post(f"/api/reports/{rid}/render", json={"period": {"preset": "last_month"}}).json()
     assert out["client"]["name"] == "NovaBank" and out["period"]["label"] == "Sep 2026"
     assert [b.get("error") for b in out["blocks"]] == [None] * len(out["blocks"])
     assert out["blocks"][0]["text"] == "Personal Loans MIS — NovaBank"
     did = rapi.get("/api/dashboards").json()[0]["id"]
-    board = rapi.post(f"/api/dashboards/{did}/render", json={"connection_id": published_client, "period": {"preset": "last_month"}}).json()
+    board = rapi.post(f"/api/dashboards/{did}/render", json={"period": {"preset": "last_month"}}).json()
     assert len(board["blocks"]) == 14 and all("error" not in b for b in board["blocks"])
     assert board["blocks"][0]["kpi"]["sparkline"]
 
@@ -108,7 +108,7 @@ def test_render_default_report_and_dashboard(rapi, published_client):
 @pytest.mark.db
 def test_render_blocks_stores_nothing(rapi, published_client):
     before = rapi.get("/api/reports").json()
-    r = rapi.post("/api/render-blocks", json={"connection_id": published_client, "period": {"preset": "last_month"},
+    r = rapi.post("/api/render-blocks", json={"period": {"preset": "last_month"},
                                               "blocks": [chart_block()]})
     assert r.status_code == 200 and r.json()["blocks"][0]["rows"]
     assert rapi.get("/api/reports").json() == before
@@ -119,6 +119,6 @@ def test_render_unpublished_client_is_409(rapi, pg_engine):
     with pg_engine.begin() as conn:
         for v in ("applications", "applications_base"):
             conn.execute(text(f"DROP VIEW IF EXISTS {PUBLISH_SCHEMA}.{v}"))
-    cid = rapi.post("/api/connections", json=client1_body()).json()["id"]
-    r = rapi.post("/api/render-blocks", json={"connection_id": cid, "period": {"preset": "last_month"}, "blocks": [chart_block()]})
+    rapi.post("/api/connections", json=client1_body())
+    r = rapi.post("/api/render-blocks", json={"period": {"preset": "last_month"}, "blocks": [chart_block()]})
     assert r.status_code == 409 and r.json()["detail"] == "NovaBank has no published views; publish its mapping first"

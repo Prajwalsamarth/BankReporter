@@ -1,15 +1,17 @@
 # backend/app/api/reporting.py
-"""Reporting & dashboards API (spec §7)."""
-from fastapi import APIRouter, HTTPException, Request, Response
-from pydantic import BaseModel, Field
-from sqlalchemy import create_engine, func
+"""Reporting & dashboards API (spec §7); ownership and client scoping from Part 4."""
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy import create_engine, or_
 from sqlalchemy.exc import OperationalError
 
+from app.auth.access import CHOOSE_CLIENT, check_editable, is_editable, scope_connection, visible_item
+from app.auth.scope import Scope, get_scope
 from app.connections import DecryptError, decrypt_url, mask_secrets
 from app.reporting.period import PeriodError, resolve_period
 from app.reporting.render import NotPublished, RenderContext, check_published, render_blocks
 from app.reporting.spec import check_blocks
-from app.store import Connection, Dashboard, MappingRun, Publication, ReportTemplate
+from app.store import Dashboard, ReportTemplate
 
 router = APIRouter(prefix="/api")
 TILE_TYPES = {"kpi", "chart", "table"}
@@ -21,16 +23,18 @@ class ReportIn(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     description: str = ""
     blocks: list[dict]
+    shared: bool = True          # admin only; client users always create private items
 
 
 class DashboardIn(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     default_period: dict = Field(default_factory=lambda: {"preset": "last_month"})
     tiles: list[dict]
+    shared: bool = True
 
 
 class RenderIn(BaseModel):
-    connection_id: int
+    model_config = ConfigDict(extra="forbid")      # an old client sending connection_id fails loudly
     period: dict
 
 
@@ -42,21 +46,19 @@ def _state(request: Request):
     return request.app.state
 
 
-def _get(s, model, id_):
-    obj = s.get(model, id_)
-    if obj is None:
-        raise HTTPException(404, f"{model.__tablename__} {id_} not found")
-    return obj
+def _ownership(obj, scope: Scope) -> dict:
+    return {"shared": obj.client_id is None, "editable": is_editable(scope, obj),
+            "owner": {"id": obj.client.id, "name": obj.client.name} if obj.client else None}
 
 
-def _report_out(t: ReportTemplate) -> dict:
+def _report_out(t: ReportTemplate, scope: Scope) -> dict:
     return {"id": t.id, "name": t.name, "description": t.description, "blocks": t.blocks,
-            "updated_at": t.updated_at.isoformat()}
+            "updated_at": t.updated_at.isoformat(), **_ownership(t, scope)}
 
 
-def _dashboard_out(d: Dashboard) -> dict:
+def _dashboard_out(d: Dashboard, scope: Scope) -> dict:
     return {"id": d.id, "name": d.name, "default_period": d.default_period, "tiles": d.tiles,
-            "updated_at": d.updated_at.isoformat()}
+            "updated_at": d.updated_at.isoformat(), **_ownership(d, scope)}
 
 
 def _check_report(body: ReportIn, st) -> None:
@@ -92,77 +94,90 @@ def _check_dashboard(body: DashboardIn, st) -> None:
         raise HTTPException(422, {"errors": errors})
 
 
-def _save(s, obj, conflict_name: str):
-    s.flush()                       # a new object gets its id, so it doesn't clash with itself
-    clash = s.query(type(obj)).filter(type(obj).name == conflict_name, type(obj).client_id.is_(None),
-                                      type(obj).id != (obj.id or 0)).first()
-    if clash:
-        s.rollback()
-        raise HTTPException(409, f"the name {conflict_name!r} is already used")
+def _visible_query(s, model, scope: Scope):
+    q = s.query(model).order_by(model.name)
+    if not scope.is_admin:
+        q = q.filter(or_(model.client_id.is_(None), model.client_id == scope.client_id))
+    return q
+
+
+def _new_owner(scope: Scope, shared: bool) -> int | None:
+    if not scope.is_admin:
+        return scope.client_id
+    if shared:
+        return None
+    if scope.client_id is None:
+        raise HTTPException(409, CHOOSE_CLIENT)
+    return scope.client_id
+
+
+def _check_name(s, model, name: str, owner: int | None, exclude: int | None = None) -> None:
+    """Names are unique per owner, and a private item can't reuse a shared item's name (spec §2.2)."""
+    clash = s.query(model).filter(model.name == name, model.id != (exclude or 0))
+    same_owner = model.client_id.is_(None) if owner is None else model.client_id == owner
+    if clash.filter(same_owner).first() or (owner is not None and clash.filter(model.client_id.is_(None)).first()):
+        raise HTTPException(409, f"the name {name!r} is already used")
+
+
+def _commit(s, obj) -> None:
     s.commit()
     s.refresh(obj)
 
 
-# ---- metrics & published clients -------------------------------------------------------------
+# ---- metrics -------------------------------------------------------------------------------------
 
 @router.get("/metrics")
 def list_metrics(request: Request):
     return [m.model_dump(exclude={"formula"}) for m in _state(request).metrics.metrics]
 
 
-@router.get("/connections/published")
-def published_connections(request: Request):
-    st = _state(request)
-    with st.store.session() as s:
-        rows = (s.query(Connection, func.max(Publication.published_at))
-                .join(MappingRun, MappingRun.connection_id == Connection.id)
-                .join(Publication, Publication.run_id == MappingRun.id)
-                .filter(Publication.schema == st.settings.publish_schema)
-                .group_by(Connection.id).order_by(Connection.name).all())
-        return [{"id": c.id, "name": c.name, "dialect": c.dialect, "published_at": at.isoformat()} for c, at in rows]
-
-
 # ---- report templates ---------------------------------------------------------------------------
 
 @router.get("/reports")
-def list_reports(request: Request):
+def list_reports(request: Request, scope: Scope = Depends(get_scope)):
     with _state(request).store.session() as s:
-        return [{k: v for k, v in _report_out(t).items() if k != "blocks"}
-                for t in s.query(ReportTemplate).order_by(ReportTemplate.name)]
+        return [{k: v for k, v in _report_out(t, scope).items() if k != "blocks"}
+                for t in _visible_query(s, ReportTemplate, scope)]
 
 
 @router.post("/reports", status_code=201)
-def create_report(body: ReportIn, request: Request):
+def create_report(body: ReportIn, request: Request, scope: Scope = Depends(get_scope)):
     st = _state(request)
     _check_report(body, st)
+    owner = _new_owner(scope, body.shared)
     with st.store.session() as s:
-        t = ReportTemplate(name=body.name, description=body.description, blocks=body.blocks)
+        _check_name(s, ReportTemplate, body.name, owner)
+        t = ReportTemplate(name=body.name, description=body.description, blocks=body.blocks, client_id=owner)
         s.add(t)
-        _save(s, t, body.name)
-        return _report_out(t)
+        _commit(s, t)
+        return _report_out(t, scope)
 
 
 @router.get("/reports/{rid}")
-def get_report(rid: int, request: Request):
+def get_report(rid: int, request: Request, scope: Scope = Depends(get_scope)):
     with _state(request).store.session() as s:
-        return _report_out(_get(s, ReportTemplate, rid))
+        return _report_out(visible_item(s, scope, ReportTemplate, rid), scope)
 
 
 @router.put("/reports/{rid}")
-def update_report(rid: int, body: ReportIn, request: Request):
+def update_report(rid: int, body: ReportIn, request: Request, scope: Scope = Depends(get_scope)):
     st = _state(request)
-    _check_report(body, st)
     with st.store.session() as s:
-        t = _get(s, ReportTemplate, rid)
+        t = visible_item(s, scope, ReportTemplate, rid)
+        check_editable(scope, t)
+        _check_report(body, st)
+        _check_name(s, ReportTemplate, body.name, t.client_id, exclude=t.id)
         t.name, t.description, t.blocks = body.name, body.description, body.blocks
-        _save(s, t, body.name)
-        return _report_out(t)
+        _commit(s, t)
+        return _report_out(t, scope)
 
 
 @router.delete("/reports/{rid}", status_code=204)
-def delete_report(rid: int, request: Request):
+def delete_report(rid: int, request: Request, scope: Scope = Depends(get_scope)):
     with _state(request).store.session() as s:
-        s.delete(_get(s, ReportTemplate, rid))
+        t = visible_item(s, scope, ReportTemplate, rid)
+        check_editable(scope, t)
+        s.delete(t)
         s.commit()
     return Response(status_code=204)
 
@@ -170,59 +185,65 @@ def delete_report(rid: int, request: Request):
 # ---- dashboards ----------------------------------------------------------------------------------
 
 @router.get("/dashboards")
-def list_dashboards(request: Request):
+def list_dashboards(request: Request, scope: Scope = Depends(get_scope)):
     with _state(request).store.session() as s:
-        return [{k: v for k, v in _dashboard_out(d).items() if k != "tiles"}
-                for d in s.query(Dashboard).order_by(Dashboard.name)]
+        return [{k: v for k, v in _dashboard_out(d, scope).items() if k != "tiles"}
+                for d in _visible_query(s, Dashboard, scope)]
 
 
 @router.post("/dashboards", status_code=201)
-def create_dashboard(body: DashboardIn, request: Request):
+def create_dashboard(body: DashboardIn, request: Request, scope: Scope = Depends(get_scope)):
     st = _state(request)
     _check_dashboard(body, st)
+    owner = _new_owner(scope, body.shared)
     with st.store.session() as s:
-        d = Dashboard(name=body.name, default_period=body.default_period, tiles=body.tiles)
+        _check_name(s, Dashboard, body.name, owner)
+        d = Dashboard(name=body.name, default_period=body.default_period, tiles=body.tiles, client_id=owner)
         s.add(d)
-        _save(s, d, body.name)
-        return _dashboard_out(d)
+        _commit(s, d)
+        return _dashboard_out(d, scope)
 
 
 @router.get("/dashboards/{did}")
-def get_dashboard(did: int, request: Request):
+def get_dashboard(did: int, request: Request, scope: Scope = Depends(get_scope)):
     with _state(request).store.session() as s:
-        return _dashboard_out(_get(s, Dashboard, did))
+        return _dashboard_out(visible_item(s, scope, Dashboard, did), scope)
 
 
 @router.put("/dashboards/{did}")
-def update_dashboard(did: int, body: DashboardIn, request: Request):
+def update_dashboard(did: int, body: DashboardIn, request: Request, scope: Scope = Depends(get_scope)):
     st = _state(request)
-    _check_dashboard(body, st)
     with st.store.session() as s:
-        d = _get(s, Dashboard, did)
+        d = visible_item(s, scope, Dashboard, did)
+        check_editable(scope, d)
+        _check_dashboard(body, st)
+        _check_name(s, Dashboard, body.name, d.client_id, exclude=d.id)
         d.name, d.default_period, d.tiles = body.name, body.default_period, body.tiles
-        _save(s, d, body.name)
-        return _dashboard_out(d)
+        _commit(s, d)
+        return _dashboard_out(d, scope)
 
 
 @router.delete("/dashboards/{did}", status_code=204)
-def delete_dashboard(did: int, request: Request):
+def delete_dashboard(did: int, request: Request, scope: Scope = Depends(get_scope)):
     with _state(request).store.session() as s:
-        s.delete(_get(s, Dashboard, did))
+        d = visible_item(s, scope, Dashboard, did)
+        check_editable(scope, d)
+        s.delete(d)
         s.commit()
     return Response(status_code=204)
 
 
 # ---- rendering -----------------------------------------------------------------------------------
 
-def _render(request: Request, connection_id: int, period_spec: dict, blocks: list[dict]) -> dict:
+def _render(request: Request, scope: Scope, period_spec: dict, blocks: list[dict]) -> dict:
     st = _state(request)
     with st.store.session() as s:
-        conn = _get(s, Connection, connection_id)
+        conn = scope_connection(s, scope)
         try:
             url = decrypt_url(conn.url_encrypted, st.settings.secret_key)
         except DecryptError as exc:
             raise HTTPException(409, f"{exc}; re-enter the password") from None
-        name = conn.name
+        connection_id, name = conn.id, conn.name
     try:
         period = resolve_period(period_spec, st.today())
     except PeriodError as exc:
@@ -246,19 +267,19 @@ def _render(request: Request, connection_id: int, period_spec: dict, blocks: lis
 
 
 @router.post("/reports/{rid}/render")
-def render_report(rid: int, body: RenderIn, request: Request):
+def render_report(rid: int, body: RenderIn, request: Request, scope: Scope = Depends(get_scope)):
     with _state(request).store.session() as s:
-        blocks = _get(s, ReportTemplate, rid).blocks
-    return _render(request, body.connection_id, body.period, blocks)
+        blocks = visible_item(s, scope, ReportTemplate, rid).blocks
+    return _render(request, scope, body.period, blocks)
 
 
 @router.post("/dashboards/{did}/render")
-def render_dashboard(did: int, body: RenderIn, request: Request):
+def render_dashboard(did: int, body: RenderIn, request: Request, scope: Scope = Depends(get_scope)):
     with _state(request).store.session() as s:
-        blocks = [t["block"] for t in _get(s, Dashboard, did).tiles]
-    return _render(request, body.connection_id, body.period, blocks)
+        blocks = [t["block"] for t in visible_item(s, scope, Dashboard, did).tiles]
+    return _render(request, scope, body.period, blocks)
 
 
 @router.post("/render-blocks")
-def render_unsaved(body: RenderBlocksIn, request: Request):
-    return _render(request, body.connection_id, body.period, body.blocks)
+def render_unsaved(body: RenderBlocksIn, request: Request, scope: Scope = Depends(get_scope)):
+    return _render(request, scope, body.period, body.blocks)
