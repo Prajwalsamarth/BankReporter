@@ -7,6 +7,7 @@ An internal proof of concept: a reporting tool for retail personal-loan applicat
 | 1. Field catalog, formula compiler, mock client DBs | done | `docs/superpowers/specs/2026-10-22-catalog-and-mock-data-design.md` |
 | 2. Data mapping (matcher, views, API, UI, evaluation) | done | `docs/superpowers/specs/2026-10-22-data-mapping-design.md` |
 | 3. Reporting & dashboards | done | `docs/superpowers/specs/2026-10-22-reporting-dashboards-design.md` |
+| 4. Client sign-in and data isolation | done | `docs/superpowers/specs/2026-10-22-client-auth-design.md` |
 
 ## Sample logins
 
