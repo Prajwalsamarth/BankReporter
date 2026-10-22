@@ -10,6 +10,8 @@ from app.mapping.types import (
 @pytest.mark.parametrize("raw, expected", [
     ("NET_MTH_INC", "net_mth_inc"), ("NetMthInc", "net_mth_inc"), ("applicationId", "application_id"),
     ("APPL-NO", "appl_no"), ("  cust id ", "cust_id"), ("PAN_NO", "pan_no"),
+    # regression: all-caps names must not split between a digit and a letter
+    ("DPD30_12M", "dpd30_12m"), ("ENQ_6M", "enq_6m"), ("Dpd30Count", "dpd30_count"),
 ])
 def test_norm(raw, expected):
     assert norm(raw) == expected

@@ -1,0 +1,2357 @@
+{
+  "date": "2026-10-22",
+  "model": null,
+  "embedding_model": "BAAI/bge-small-en-v1.5",
+  "b_accept": 0.85,
+  "b_margin": 0.05,
+  "catalog_version": 1,
+  "abc_skipped": true,
+  "runs": [
+    {
+      "client": "client1",
+      "mask": 0.0,
+      "seed": 1,
+      "layers": "A",
+      "llm_calls": 0,
+      "llm_tokens": 0,
+      "field_accuracy": 1.0,
+      "required_accuracy": 1.0,
+      "wrong": 0,
+      "unmapped": 0,
+      "by_layer": {
+        "A": {
+          "decided": 58,
+          "correct": 58
+        },
+        "B": {
+          "decided": 0,
+          "correct": 0
+        },
+        "C": {
+          "decided": 0,
+          "correct": 0
+        },
+        "key": {
+          "decided": 1,
+          "correct": 1
+        }
+      },
+      "errors": [],
+      "join_plan_correct": true
+    },
+    {
+      "client": "client1",
+      "mask": 0.0,
+      "seed": 1,
+      "layers": "AB",
+      "llm_calls": 0,
+      "llm_tokens": 0,
+      "field_accuracy": 1.0,
+      "required_accuracy": 1.0,
+      "wrong": 0,
+      "unmapped": 0,
+      "by_layer": {
+        "A": {
+          "decided": 58,
+          "correct": 58
+        },
+        "B": {
+          "decided": 0,
+          "correct": 0
+        },
+        "C": {
+          "decided": 0,
+          "correct": 0
+        },
+        "key": {
+          "decided": 1,
+          "correct": 1
+        }
+      },
+      "errors": [],
+      "join_plan_correct": true
+    },
+    {
+      "client": "client1",
+      "mask": 0.5,
+      "seed": 1,
+      "layers": "A",
+      "llm_calls": 0,
+      "llm_tokens": 0,
+      "field_accuracy": 0.864406779661017,
+      "required_accuracy": 0.875,
+      "wrong": 0,
+      "unmapped": 8,
+      "by_layer": {
+        "A": {
+          "decided": 50,
+          "correct": 50
+        },
+        "B": {
+          "decided": 0,
+          "correct": 0
+        },
+        "C": {
+          "decided": 0,
+          "correct": 0
+        },
+        "key": {
+          "decided": 1,
+          "correct": 1
+        }
+      },
+      "errors": [
+        {
+          "field": "application_date",
+          "got": null,
+          "expected": [
+            "loan_application.applied_on"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "kyc_mode",
+          "got": null,
+          "expected": [
+            "kyc_verification.verification_mode"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "gross_income_monthly",
+          "got": null,
+          "expected": [
+            "employment.gross_monthly_income"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "net_income_monthly",
+          "got": null,
+          "expected": [
+            "employment.net_monthly_income"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "dpd90_count_l12m",
+          "got": null,
+          "expected": [
+            "bureau_report.dpd90_l12m"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "bank_months_analysed",
+          "got": null,
+          "expected": [
+            "bank_analysis.months_analysed"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "interest_rate_pct",
+          "got": null,
+          "expected": [
+            "credit_decision.interest_rate"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "disbursement_date",
+          "got": null,
+          "expected": [
+            "disbursement.disbursed_on"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        }
+      ],
+      "join_plan_correct": true
+    },
+    {
+      "client": "client1",
+      "mask": 0.5,
+      "seed": 1,
+      "layers": "AB",
+      "llm_calls": 0,
+      "llm_tokens": 0,
+      "field_accuracy": 1.0,
+      "required_accuracy": 1.0,
+      "wrong": 0,
+      "unmapped": 0,
+      "by_layer": {
+        "A": {
+          "decided": 50,
+          "correct": 50
+        },
+        "B": {
+          "decided": 8,
+          "correct": 8
+        },
+        "C": {
+          "decided": 0,
+          "correct": 0
+        },
+        "key": {
+          "decided": 1,
+          "correct": 1
+        }
+      },
+      "errors": [],
+      "join_plan_correct": true
+    },
+    {
+      "client": "client1",
+      "mask": 0.5,
+      "seed": 2,
+      "layers": "A",
+      "llm_calls": 0,
+      "llm_tokens": 0,
+      "field_accuracy": 0.864406779661017,
+      "required_accuracy": 0.75,
+      "wrong": 0,
+      "unmapped": 8,
+      "by_layer": {
+        "A": {
+          "decided": 50,
+          "correct": 50
+        },
+        "B": {
+          "decided": 0,
+          "correct": 0
+        },
+        "C": {
+          "decided": 0,
+          "correct": 0
+        },
+        "key": {
+          "decided": 1,
+          "correct": 1
+        }
+      },
+      "errors": [
+        {
+          "field": "application_date",
+          "got": null,
+          "expected": [
+            "loan_application.applied_on"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "application_status",
+          "got": null,
+          "expected": [
+            "loan_application.status"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "kyc_verified_date",
+          "got": null,
+          "expected": [
+            "kyc_verification.verified_on"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "net_income_monthly",
+          "got": null,
+          "expected": [
+            "employment.net_monthly_income"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "bureau_pull_date",
+          "got": null,
+          "expected": [
+            "bureau_report.pulled_on"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "existing_emi_monthly",
+          "got": null,
+          "expected": [
+            "bureau_report.monthly_emi_obligations"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "dpd90_count_l12m",
+          "got": null,
+          "expected": [
+            "bureau_report.dpd90_l12m"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "bank_months_analysed",
+          "got": null,
+          "expected": [
+            "bank_analysis.months_analysed"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        }
+      ],
+      "join_plan_correct": true
+    },
+    {
+      "client": "client1",
+      "mask": 0.5,
+      "seed": 2,
+      "layers": "AB",
+      "llm_calls": 0,
+      "llm_tokens": 0,
+      "field_accuracy": 1.0,
+      "required_accuracy": 1.0,
+      "wrong": 0,
+      "unmapped": 0,
+      "by_layer": {
+        "A": {
+          "decided": 50,
+          "correct": 50
+        },
+        "B": {
+          "decided": 8,
+          "correct": 8
+        },
+        "C": {
+          "decided": 0,
+          "correct": 0
+        },
+        "key": {
+          "decided": 1,
+          "correct": 1
+        }
+      },
+      "errors": [],
+      "join_plan_correct": true
+    },
+    {
+      "client": "client1",
+      "mask": 0.5,
+      "seed": 3,
+      "layers": "A",
+      "llm_calls": 0,
+      "llm_tokens": 0,
+      "field_accuracy": 0.864406779661017,
+      "required_accuracy": 0.8125,
+      "wrong": 0,
+      "unmapped": 8,
+      "by_layer": {
+        "A": {
+          "decided": 50,
+          "correct": 50
+        },
+        "B": {
+          "decided": 0,
+          "correct": 0
+        },
+        "C": {
+          "decided": 0,
+          "correct": 0
+        },
+        "key": {
+          "decided": 1,
+          "correct": 1
+        }
+      },
+      "errors": [
+        {
+          "field": "application_date",
+          "got": null,
+          "expected": [
+            "loan_application.applied_on"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "application_status",
+          "got": null,
+          "expected": [
+            "loan_application.status"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "kyc_verified_date",
+          "got": null,
+          "expected": [
+            "kyc_verification.verified_on"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "net_income_monthly",
+          "got": null,
+          "expected": [
+            "employment.net_monthly_income"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "bureau_pull_date",
+          "got": null,
+          "expected": [
+            "bureau_report.pulled_on"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "dpd30_count_l12m",
+          "got": null,
+          "expected": [
+            "bureau_report.dpd30_l12m"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "dpd90_count_l12m",
+          "got": null,
+          "expected": [
+            "bureau_report.dpd90_l12m"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "disbursement_date",
+          "got": null,
+          "expected": [
+            "disbursement.disbursed_on"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        }
+      ],
+      "join_plan_correct": true
+    },
+    {
+      "client": "client1",
+      "mask": 0.5,
+      "seed": 3,
+      "layers": "AB",
+      "llm_calls": 0,
+      "llm_tokens": 0,
+      "field_accuracy": 1.0,
+      "required_accuracy": 1.0,
+      "wrong": 0,
+      "unmapped": 0,
+      "by_layer": {
+        "A": {
+          "decided": 50,
+          "correct": 50
+        },
+        "B": {
+          "decided": 8,
+          "correct": 8
+        },
+        "C": {
+          "decided": 0,
+          "correct": 0
+        },
+        "key": {
+          "decided": 1,
+          "correct": 1
+        }
+      },
+      "errors": [],
+      "join_plan_correct": true
+    },
+    {
+      "client": "client1",
+      "mask": 1.0,
+      "seed": 1,
+      "layers": "A",
+      "llm_calls": 0,
+      "llm_tokens": 0,
+      "field_accuracy": 0.7288135593220338,
+      "required_accuracy": 0.6875,
+      "wrong": 0,
+      "unmapped": 16,
+      "by_layer": {
+        "A": {
+          "decided": 42,
+          "correct": 42
+        },
+        "B": {
+          "decided": 0,
+          "correct": 0
+        },
+        "C": {
+          "decided": 0,
+          "correct": 0
+        },
+        "key": {
+          "decided": 1,
+          "correct": 1
+        }
+      },
+      "errors": [
+        {
+          "field": "application_date",
+          "got": null,
+          "expected": [
+            "loan_application.applied_on"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "application_status",
+          "got": null,
+          "expected": [
+            "loan_application.status"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "applicant_name",
+          "got": null,
+          "expected": [
+            "customer.full_name"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "kyc_verified_date",
+          "got": null,
+          "expected": [
+            "kyc_verification.verified_on"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "kyc_mode",
+          "got": null,
+          "expected": [
+            "kyc_verification.verification_mode"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "gross_income_monthly",
+          "got": null,
+          "expected": [
+            "employment.gross_monthly_income"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "net_income_monthly",
+          "got": null,
+          "expected": [
+            "employment.net_monthly_income"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "bureau_pull_date",
+          "got": null,
+          "expected": [
+            "bureau_report.pulled_on"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "existing_emi_monthly",
+          "got": null,
+          "expected": [
+            "bureau_report.monthly_emi_obligations"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "dpd30_count_l12m",
+          "got": null,
+          "expected": [
+            "bureau_report.dpd30_l12m"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "dpd90_count_l12m",
+          "got": null,
+          "expected": [
+            "bureau_report.dpd90_l12m"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "bank_months_analysed",
+          "got": null,
+          "expected": [
+            "bank_analysis.months_analysed"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "decision_date",
+          "got": null,
+          "expected": [
+            "credit_decision.decided_on"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "interest_rate_pct",
+          "got": null,
+          "expected": [
+            "credit_decision.interest_rate"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "approved_emi",
+          "got": null,
+          "expected": [
+            "credit_decision.emi_amount"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "disbursement_date",
+          "got": null,
+          "expected": [
+            "disbursement.disbursed_on"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        }
+      ],
+      "join_plan_correct": true
+    },
+    {
+      "client": "client1",
+      "mask": 1.0,
+      "seed": 1,
+      "layers": "AB",
+      "llm_calls": 0,
+      "llm_tokens": 0,
+      "field_accuracy": 1.0,
+      "required_accuracy": 1.0,
+      "wrong": 0,
+      "unmapped": 0,
+      "by_layer": {
+        "A": {
+          "decided": 42,
+          "correct": 42
+        },
+        "B": {
+          "decided": 16,
+          "correct": 16
+        },
+        "C": {
+          "decided": 0,
+          "correct": 0
+        },
+        "key": {
+          "decided": 1,
+          "correct": 1
+        }
+      },
+      "errors": [],
+      "join_plan_correct": true
+    },
+    {
+      "client": "client2",
+      "mask": 0.0,
+      "seed": 1,
+      "layers": "A",
+      "llm_calls": 0,
+      "llm_tokens": 0,
+      "field_accuracy": 1.0,
+      "required_accuracy": 1.0,
+      "wrong": 0,
+      "unmapped": 0,
+      "by_layer": {
+        "A": {
+          "decided": 58,
+          "correct": 58
+        },
+        "B": {
+          "decided": 0,
+          "correct": 0
+        },
+        "C": {
+          "decided": 0,
+          "correct": 0
+        },
+        "key": {
+          "decided": 1,
+          "correct": 1
+        }
+      },
+      "errors": [],
+      "join_plan_correct": true
+    },
+    {
+      "client": "client2",
+      "mask": 0.0,
+      "seed": 1,
+      "layers": "AB",
+      "llm_calls": 0,
+      "llm_tokens": 0,
+      "field_accuracy": 1.0,
+      "required_accuracy": 1.0,
+      "wrong": 0,
+      "unmapped": 0,
+      "by_layer": {
+        "A": {
+          "decided": 58,
+          "correct": 58
+        },
+        "B": {
+          "decided": 0,
+          "correct": 0
+        },
+        "C": {
+          "decided": 0,
+          "correct": 0
+        },
+        "key": {
+          "decided": 1,
+          "correct": 1
+        }
+      },
+      "errors": [],
+      "join_plan_correct": true
+    },
+    {
+      "client": "client2",
+      "mask": 0.5,
+      "seed": 1,
+      "layers": "A",
+      "llm_calls": 0,
+      "llm_tokens": 0,
+      "field_accuracy": 0.5254237288135594,
+      "required_accuracy": 0.75,
+      "wrong": 0,
+      "unmapped": 28,
+      "by_layer": {
+        "A": {
+          "decided": 30,
+          "correct": 30
+        },
+        "B": {
+          "decided": 0,
+          "correct": 0
+        },
+        "C": {
+          "decided": 0,
+          "correct": 0
+        },
+        "key": {
+          "decided": 1,
+          "correct": 1
+        }
+      },
+      "errors": [
+        {
+          "field": "channel",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.SRC_CHNL"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "branch_code",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.BR_CD"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "requested_amount",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.LN_AMT_REQ"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "loan_purpose",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.LN_PURP"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "marital_status",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.MRTL_STS"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "residence_type",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.RES_TYP"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "state",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.STATE_NM"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "pincode",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.PIN_CD"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "aadhaar_masked",
+          "got": null,
+          "expected": [
+            "TBL_APPL_RISK.AADH_MSK"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "ckyc_number",
+          "got": null,
+          "expected": [
+            "TBL_APPL_RISK.CKYC_NO"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "kyc_verified_date",
+          "got": null,
+          "expected": [
+            "TBL_APPL_RISK.KYC_VRF_DT"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "employer_category",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.EMPLR_CAT"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "employer_name",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.EMPLR_NM"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "gross_income_monthly",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.GRS_MTH_INC"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "total_experience_years",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.TOT_EXP_YRS"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "active_accounts",
+          "got": null,
+          "expected": [
+            "TBL_APPL_RISK.CIB_ACT_ACC"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "oldest_account_age_months",
+          "got": null,
+          "expected": [
+            "TBL_APPL_RISK.CIB_OLD_ACC_MTHS"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "card_utilization_pct",
+          "got": null,
+          "expected": [
+            "TBL_APPL_RISK.CIB_CC_UTIL"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "dpd30_count_l12m",
+          "got": null,
+          "expected": [
+            "TBL_APPL_RISK.DPD30_12M"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "dpd90_count_l12m",
+          "got": null,
+          "expected": [
+            "TBL_APPL_RISK.DPD90_12M"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "has_writeoff",
+          "got": null,
+          "expected": [
+            "TBL_APPL_RISK.WO_FLG"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "bounce_count",
+          "got": null,
+          "expected": [
+            "TBL_APPL_RISK.BS_BNC_CNT"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "decision_mode",
+          "got": null,
+          "expected": [
+            "TBL_SANCTION_DISB.DCSN_MODE"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "rejection_reason",
+          "got": null,
+          "expected": [
+            "TBL_SANCTION_DISB.REJ_RSN"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "approved_amount",
+          "got": null,
+          "expected": [
+            "TBL_SANCTION_DISB.SANC_AMT"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "approved_tenure_months",
+          "got": null,
+          "expected": [
+            "TBL_SANCTION_DISB.SANC_TNR"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "approved_emi",
+          "got": null,
+          "expected": [
+            "TBL_SANCTION_DISB.EMI_AMT"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "processing_fee",
+          "got": null,
+          "expected": [
+            "TBL_SANCTION_DISB.PF_AMT"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        }
+      ],
+      "join_plan_correct": true
+    },
+    {
+      "client": "client2",
+      "mask": 0.5,
+      "seed": 1,
+      "layers": "AB",
+      "llm_calls": 0,
+      "llm_tokens": 0,
+      "field_accuracy": 1.0,
+      "required_accuracy": 1.0,
+      "wrong": 0,
+      "unmapped": 0,
+      "by_layer": {
+        "A": {
+          "decided": 30,
+          "correct": 30
+        },
+        "B": {
+          "decided": 28,
+          "correct": 28
+        },
+        "C": {
+          "decided": 0,
+          "correct": 0
+        },
+        "key": {
+          "decided": 1,
+          "correct": 1
+        }
+      },
+      "errors": [],
+      "join_plan_correct": true
+    },
+    {
+      "client": "client2",
+      "mask": 0.5,
+      "seed": 2,
+      "layers": "A",
+      "llm_calls": 0,
+      "llm_tokens": 0,
+      "field_accuracy": 0.5084745762711864,
+      "required_accuracy": 0.5,
+      "wrong": 0,
+      "unmapped": 29,
+      "by_layer": {
+        "A": {
+          "decided": 29,
+          "correct": 29
+        },
+        "B": {
+          "decided": 0,
+          "correct": 0
+        },
+        "C": {
+          "decided": 0,
+          "correct": 0
+        },
+        "key": {
+          "decided": 1,
+          "correct": 1
+        }
+      },
+      "errors": [
+        {
+          "field": "application_date",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.APPL_DT"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "channel",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.SRC_CHNL"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "branch_code",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.BR_CD"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "application_status",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.APPL_STS"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "applicant_name",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.CUST_NM"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "marital_status",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.MRTL_STS"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "residence_type",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.RES_TYP"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "years_at_residence",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.YRS_RES"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "city",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.CITY_NM"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "pincode",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.PIN_CD"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "employment_type",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.EMP_TYP"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "net_income_monthly",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.NET_MTH_INC"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "total_experience_years",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.TOT_EXP_YRS"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "active_accounts",
+          "got": null,
+          "expected": [
+            "TBL_APPL_RISK.CIB_ACT_ACC"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "total_outstanding",
+          "got": null,
+          "expected": [
+            "TBL_APPL_RISK.CIB_TOT_OS"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "existing_emi_monthly",
+          "got": null,
+          "expected": [
+            "TBL_APPL_RISK.CIB_EMI_OBL"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "oldest_account_age_months",
+          "got": null,
+          "expected": [
+            "TBL_APPL_RISK.CIB_OLD_ACC_MTHS"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "card_utilization_pct",
+          "got": null,
+          "expected": [
+            "TBL_APPL_RISK.CIB_CC_UTIL"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "dpd30_count_l12m",
+          "got": null,
+          "expected": [
+            "TBL_APPL_RISK.DPD30_12M"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "dpd90_count_l12m",
+          "got": null,
+          "expected": [
+            "TBL_APPL_RISK.DPD90_12M"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "has_writeoff",
+          "got": null,
+          "expected": [
+            "TBL_APPL_RISK.WO_FLG"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "avg_monthly_credits",
+          "got": null,
+          "expected": [
+            "TBL_APPL_RISK.BS_AVG_CR"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "avg_monthly_debits",
+          "got": null,
+          "expected": [
+            "TBL_APPL_RISK.BS_AVG_DR"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "bounce_count",
+          "got": null,
+          "expected": [
+            "TBL_APPL_RISK.BS_BNC_CNT"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "salary_regularity",
+          "got": null,
+          "expected": [
+            "TBL_APPL_RISK.BS_SAL_REG"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "decision_date",
+          "got": null,
+          "expected": [
+            "TBL_SANCTION_DISB.DCSN_DT"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "interest_rate_pct",
+          "got": null,
+          "expected": [
+            "TBL_SANCTION_DISB.ROI"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "disbursed_amount",
+          "got": null,
+          "expected": [
+            "TBL_SANCTION_DISB.DISB_AMT"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "processing_fee",
+          "got": null,
+          "expected": [
+            "TBL_SANCTION_DISB.PF_AMT"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        }
+      ],
+      "join_plan_correct": true
+    },
+    {
+      "client": "client2",
+      "mask": 0.5,
+      "seed": 2,
+      "layers": "AB",
+      "llm_calls": 0,
+      "llm_tokens": 0,
+      "field_accuracy": 1.0,
+      "required_accuracy": 1.0,
+      "wrong": 0,
+      "unmapped": 0,
+      "by_layer": {
+        "A": {
+          "decided": 29,
+          "correct": 29
+        },
+        "B": {
+          "decided": 29,
+          "correct": 29
+        },
+        "C": {
+          "decided": 0,
+          "correct": 0
+        },
+        "key": {
+          "decided": 1,
+          "correct": 1
+        }
+      },
+      "errors": [],
+      "join_plan_correct": true
+    },
+    {
+      "client": "client2",
+      "mask": 0.5,
+      "seed": 3,
+      "layers": "A",
+      "llm_calls": 0,
+      "llm_tokens": 0,
+      "field_accuracy": 0.5254237288135594,
+      "required_accuracy": 0.625,
+      "wrong": 0,
+      "unmapped": 28,
+      "by_layer": {
+        "A": {
+          "decided": 30,
+          "correct": 30
+        },
+        "B": {
+          "decided": 0,
+          "correct": 0
+        },
+        "C": {
+          "decided": 0,
+          "correct": 0
+        },
+        "key": {
+          "decided": 1,
+          "correct": 1
+        }
+      },
+      "errors": [
+        {
+          "field": "branch_code",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.BR_CD"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "requested_tenure_months",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.LN_TNR_REQ"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "customer_id",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.CUST_ID"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "gender",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.GNDR"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "marital_status",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.MRTL_STS"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "residence_type",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.RES_TYP"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "years_at_residence",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.YRS_RES"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "pincode",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.PIN_CD"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "pan_number",
+          "got": null,
+          "expected": [
+            "TBL_APPL_RISK.PAN_NO"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "aadhaar_masked",
+          "got": null,
+          "expected": [
+            "TBL_APPL_RISK.AADH_MSK"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "kyc_verified_date",
+          "got": null,
+          "expected": [
+            "TBL_APPL_RISK.KYC_VRF_DT"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "employment_type",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.EMP_TYP"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "employer_category",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.EMPLR_CAT"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "net_income_monthly",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.NET_MTH_INC"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "bureau_pull_date",
+          "got": null,
+          "expected": [
+            "TBL_APPL_RISK.CIB_PULL_DT"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "total_outstanding",
+          "got": null,
+          "expected": [
+            "TBL_APPL_RISK.CIB_TOT_OS"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "existing_emi_monthly",
+          "got": null,
+          "expected": [
+            "TBL_APPL_RISK.CIB_EMI_OBL"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "card_utilization_pct",
+          "got": null,
+          "expected": [
+            "TBL_APPL_RISK.CIB_CC_UTIL"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "has_writeoff",
+          "got": null,
+          "expected": [
+            "TBL_APPL_RISK.WO_FLG"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "bank_months_analysed",
+          "got": null,
+          "expected": [
+            "TBL_APPL_RISK.BS_MTHS"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "avg_monthly_balance",
+          "got": null,
+          "expected": [
+            "TBL_APPL_RISK.BS_AMB"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "salary_regularity",
+          "got": null,
+          "expected": [
+            "TBL_APPL_RISK.BS_SAL_REG"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "decision_date",
+          "got": null,
+          "expected": [
+            "TBL_SANCTION_DISB.DCSN_DT"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "decision_mode",
+          "got": null,
+          "expected": [
+            "TBL_SANCTION_DISB.DCSN_MODE"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "interest_rate_pct",
+          "got": null,
+          "expected": [
+            "TBL_SANCTION_DISB.ROI"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "approved_tenure_months",
+          "got": null,
+          "expected": [
+            "TBL_SANCTION_DISB.SANC_TNR"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "disbursed_amount",
+          "got": null,
+          "expected": [
+            "TBL_SANCTION_DISB.DISB_AMT"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "processing_fee",
+          "got": null,
+          "expected": [
+            "TBL_SANCTION_DISB.PF_AMT"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        }
+      ],
+      "join_plan_correct": true
+    },
+    {
+      "client": "client2",
+      "mask": 0.5,
+      "seed": 3,
+      "layers": "AB",
+      "llm_calls": 0,
+      "llm_tokens": 0,
+      "field_accuracy": 1.0,
+      "required_accuracy": 1.0,
+      "wrong": 0,
+      "unmapped": 0,
+      "by_layer": {
+        "A": {
+          "decided": 30,
+          "correct": 30
+        },
+        "B": {
+          "decided": 28,
+          "correct": 28
+        },
+        "C": {
+          "decided": 0,
+          "correct": 0
+        },
+        "key": {
+          "decided": 1,
+          "correct": 1
+        }
+      },
+      "errors": [],
+      "join_plan_correct": true
+    },
+    {
+      "client": "client2",
+      "mask": 1.0,
+      "seed": 1,
+      "layers": "A",
+      "llm_calls": 0,
+      "llm_tokens": 0,
+      "field_accuracy": 0.03389830508474576,
+      "required_accuracy": 0.0625,
+      "wrong": 0,
+      "unmapped": 57,
+      "by_layer": {
+        "A": {
+          "decided": 1,
+          "correct": 1
+        },
+        "B": {
+          "decided": 0,
+          "correct": 0
+        },
+        "C": {
+          "decided": 0,
+          "correct": 0
+        },
+        "key": {
+          "decided": 1,
+          "correct": 1
+        }
+      },
+      "errors": [
+        {
+          "field": "application_date",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.APPL_DT"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "channel",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.SRC_CHNL"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "branch_code",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.BR_CD"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "requested_amount",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.LN_AMT_REQ"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "requested_tenure_months",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.LN_TNR_REQ"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "loan_purpose",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.LN_PURP"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "application_status",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.APPL_STS"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "customer_id",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.CUST_ID"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "applicant_name",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.CUST_NM"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "date_of_birth",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.CUST_DOB"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "gender",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.GNDR"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "marital_status",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.MRTL_STS"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "education",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.EDU_QUAL"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "residence_type",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.RES_TYP"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "years_at_residence",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.YRS_RES"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "city",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.CITY_NM"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "state",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.STATE_NM"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "pincode",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.PIN_CD"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "pan_number",
+          "got": null,
+          "expected": [
+            "TBL_APPL_RISK.PAN_NO"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "aadhaar_masked",
+          "got": null,
+          "expected": [
+            "TBL_APPL_RISK.AADH_MSK"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "ckyc_number",
+          "got": null,
+          "expected": [
+            "TBL_APPL_RISK.CKYC_NO"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "kyc_status",
+          "got": null,
+          "expected": [
+            "TBL_APPL_RISK.KYC_STS"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "kyc_verified_date",
+          "got": null,
+          "expected": [
+            "TBL_APPL_RISK.KYC_VRF_DT"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "employment_type",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.EMP_TYP"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "employer_category",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.EMPLR_CAT"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "employer_name",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.EMPLR_NM"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "gross_income_monthly",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.GRS_MTH_INC"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "net_income_monthly",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.NET_MTH_INC"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "years_in_current_job",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.YRS_CURR_JOB"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "total_experience_years",
+          "got": null,
+          "expected": [
+            "TBL_LOAN_APPL.TOT_EXP_YRS"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "cibil_score",
+          "got": null,
+          "expected": [
+            "TBL_APPL_RISK.CIB_SCR"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "bureau_pull_date",
+          "got": null,
+          "expected": [
+            "TBL_APPL_RISK.CIB_PULL_DT"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "active_accounts",
+          "got": null,
+          "expected": [
+            "TBL_APPL_RISK.CIB_ACT_ACC"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "total_outstanding",
+          "got": null,
+          "expected": [
+            "TBL_APPL_RISK.CIB_TOT_OS"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "existing_emi_monthly",
+          "got": null,
+          "expected": [
+            "TBL_APPL_RISK.CIB_EMI_OBL"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "oldest_account_age_months",
+          "got": null,
+          "expected": [
+            "TBL_APPL_RISK.CIB_OLD_ACC_MTHS"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "card_utilization_pct",
+          "got": null,
+          "expected": [
+            "TBL_APPL_RISK.CIB_CC_UTIL"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "dpd30_count_l12m",
+          "got": null,
+          "expected": [
+            "TBL_APPL_RISK.DPD30_12M"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "dpd90_count_l12m",
+          "got": null,
+          "expected": [
+            "TBL_APPL_RISK.DPD90_12M"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "enquiries_l6m",
+          "got": null,
+          "expected": [
+            "TBL_APPL_RISK.ENQ_6M"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "has_writeoff",
+          "got": null,
+          "expected": [
+            "TBL_APPL_RISK.WO_FLG"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "bank_months_analysed",
+          "got": null,
+          "expected": [
+            "TBL_APPL_RISK.BS_MTHS"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "avg_monthly_balance",
+          "got": null,
+          "expected": [
+            "TBL_APPL_RISK.BS_AMB"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "avg_monthly_credits",
+          "got": null,
+          "expected": [
+            "TBL_APPL_RISK.BS_AVG_CR"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "avg_monthly_debits",
+          "got": null,
+          "expected": [
+            "TBL_APPL_RISK.BS_AVG_DR"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "bounce_count",
+          "got": null,
+          "expected": [
+            "TBL_APPL_RISK.BS_BNC_CNT"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "salary_regularity",
+          "got": null,
+          "expected": [
+            "TBL_APPL_RISK.BS_SAL_REG"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "decision_date",
+          "got": null,
+          "expected": [
+            "TBL_SANCTION_DISB.DCSN_DT"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "decision_mode",
+          "got": null,
+          "expected": [
+            "TBL_SANCTION_DISB.DCSN_MODE"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "rejection_reason",
+          "got": null,
+          "expected": [
+            "TBL_SANCTION_DISB.REJ_RSN"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "approved_amount",
+          "got": null,
+          "expected": [
+            "TBL_SANCTION_DISB.SANC_AMT"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "interest_rate_pct",
+          "got": null,
+          "expected": [
+            "TBL_SANCTION_DISB.ROI"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "approved_tenure_months",
+          "got": null,
+          "expected": [
+            "TBL_SANCTION_DISB.SANC_TNR"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "approved_emi",
+          "got": null,
+          "expected": [
+            "TBL_SANCTION_DISB.EMI_AMT"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "disbursement_date",
+          "got": null,
+          "expected": [
+            "TBL_SANCTION_DISB.DISB_DT"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "disbursed_amount",
+          "got": null,
+          "expected": [
+            "TBL_SANCTION_DISB.DISB_AMT"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        },
+        {
+          "field": "processing_fee",
+          "got": null,
+          "expected": [
+            "TBL_SANCTION_DISB.PF_AMT"
+          ],
+          "decided_by": "none",
+          "score": 0.0
+        }
+      ],
+      "join_plan_correct": true
+    },
+    {
+      "client": "client2",
+      "mask": 1.0,
+      "seed": 1,
+      "layers": "AB",
+      "llm_calls": 0,
+      "llm_tokens": 0,
+      "field_accuracy": 1.0,
+      "required_accuracy": 1.0,
+      "wrong": 0,
+      "unmapped": 0,
+      "by_layer": {
+        "A": {
+          "decided": 1,
+          "correct": 1
+        },
+        "B": {
+          "decided": 57,
+          "correct": 57
+        },
+        "C": {
+          "decided": 0,
+          "correct": 0
+        },
+        "key": {
+          "decided": 1,
+          "correct": 1
+        }
+      },
+      "errors": [],
+      "join_plan_correct": true
+    }
+  ],
+  "end_to_end": [
+    {
+      "client": "client1",
+      "mask": 0.0,
+      "layers": "AB",
+      "ok": true,
+      "rows": 2000,
+      "cell_match": 1.0,
+      "fields_below_100": {}
+    },
+    {
+      "client": "client1",
+      "mask": 0.5,
+      "layers": "AB",
+      "ok": true,
+      "rows": 2000,
+      "cell_match": 1.0,
+      "fields_below_100": {}
+    },
+    {
+      "client": "client1",
+      "mask": 1.0,
+      "layers": "AB",
+      "ok": true,
+      "rows": 2000,
+      "cell_match": 1.0,
+      "fields_below_100": {}
+    },
+    {
+      "client": "client2",
+      "mask": 0.0,
+      "layers": "AB",
+      "ok": true,
+      "rows": 2000,
+      "cell_match": 1.0,
+      "fields_below_100": {}
+    },
+    {
+      "client": "client2",
+      "mask": 0.5,
+      "layers": "AB",
+      "ok": true,
+      "rows": 2000,
+      "cell_match": 1.0,
+      "fields_below_100": {}
+    },
+    {
+      "client": "client2",
+      "mask": 1.0,
+      "layers": "AB",
+      "ok": true,
+      "rows": 2000,
+      "cell_match": 1.0,
+      "fields_below_100": {}
+    }
+  ],
+  "exact_match_synonyms": {
+    "client1": 16,
+    "client2": 58
+  }
+}

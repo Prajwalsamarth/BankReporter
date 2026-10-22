@@ -134,8 +134,10 @@ def _parse(content: str) -> list[dict]:
 
 class LlmMatcher:
     def __init__(self, client: ChatClient, model: str, sleep: Callable[[float], None] = time.sleep,
-                 cache: FileCache | None = None):
+                 cache: FileCache | None = None, read_cache: bool = True):
+        """read_cache=False: always ask the model, but still store answers (eval --refresh-llm)."""
         self.client, self.model, self.sleep, self.cache = client, model, sleep, cache
+        self.read_cache = read_cache
 
     def choose(self, table: str, table_columns: list[str], columns: list[ColumnProfile],
                shortlists: dict[ColumnRef, list[Candidate]], catalog: Catalog) -> TableResult:
@@ -167,7 +169,7 @@ class LlmMatcher:
 
     def _ask(self, messages: list[dict], result: TableResult) -> list[dict] | None:
         key = FileCache.key(self.model, messages) if self.cache else None
-        if key and (cached := self.cache.get(key)) is not None:
+        if key and self.read_cache and (cached := self.cache.get(key)) is not None:
             try:
                 return _parse(cached)
             except (ValueError, KeyError, TypeError):

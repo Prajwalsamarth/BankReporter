@@ -143,3 +143,15 @@ def test_live_openai_call():
     m = LlmMatcher(OpenAIChatClient(s.openai_api_key), model=s.llm_model)
     r = m.choose("TBL_APPL_RISK", TABLE_COLUMNS, [SCR, ENQ], SHORTLISTS, CATALOG)
     assert r.decisions[SCR.ref].field_id == "cibil_score"
+
+
+def test_refresh_mode_skips_cache_reads_but_writes(tmp_path):
+    good = answer(("CIB_SCR", "cibil_score", 0.9, None), ("ENQ_6M", "enquiries_l6m", 0.9, None))
+    cache = FileCache(tmp_path)
+    matcher(FakeChat(good), cache=cache).choose("T", TABLE_COLUMNS, [SCR, ENQ], SHORTLISTS, CATALOG)
+    fresh = answer(("CIB_SCR", "enquiries_l6m", 0.6, None), ("ENQ_6M", "enquiries_l6m", 0.9, None))
+    chat = FakeChat(fresh)
+    r = matcher(chat, cache=cache, read_cache=False).choose("T", TABLE_COLUMNS, [SCR, ENQ], SHORTLISTS, CATALOG)
+    assert len(chat.requests) == 1 and r.decisions[SCR.ref].field_id == "enquiries_l6m"
+    again = matcher(FakeChat(), cache=cache).choose("T", TABLE_COLUMNS, [SCR, ENQ], SHORTLISTS, CATALOG)
+    assert again.decisions[SCR.ref].field_id == "enquiries_l6m"   # the refreshed answer was stored
