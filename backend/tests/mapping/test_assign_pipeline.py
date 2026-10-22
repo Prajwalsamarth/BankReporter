@@ -135,3 +135,9 @@ def test_analyse_real_client_with_full_synonyms_is_exact(request, engine_fixture
     wrong = {fid: m.source for fid, m in analysis.result.mappings.items()
              if m.source is None or (m.source.table, m.source.column) not in truth[fid]}
     assert wrong == {}
+
+
+def test_llm_disabled_recorded_even_when_layer_a_decides_everything():
+    result = run_matching(profiles(), PLAN, CATALOG, "ABC", effective_synonyms(CATALOG),
+                          embedder=Embedder(encode=keyword_encoder), llm=None)
+    assert result.warnings == ["llm_disabled"]

@@ -9,3 +9,4 @@ node_modules/
 *.egg-info/
 data/
 eval/llm-cache/
+.env

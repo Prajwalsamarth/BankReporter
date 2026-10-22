@@ -23,7 +23,7 @@ def run_matching(profiles: list[ColumnProfile], plan: JoinPlan, catalog: Catalog
     keys = key_columns(plan)
     fixed = {GRAIN_FIELD: (plan.grain, "grain table primary key")}
     matchable = [p for p in profiles if p.ref not in keys and p.type != "other"]
-    warnings: list[str] = []
+    warnings: list[str] = ["llm_disabled"] if "C" in layers and llm is None else []
 
     decisions: dict[ColumnRef, Decision] = match_rules(matchable, catalog, synonyms)
     rest = [p for p in matchable if p.ref not in decisions]
@@ -31,8 +31,6 @@ def run_matching(profiles: list[ColumnProfile], plan: JoinPlan, catalog: Catalog
     calls = tokens = 0
     if "B" in layers and embedder is not None and rest:
         use_llm = "C" in layers and llm is not None
-        if "C" in layers and llm is None:
-            warnings.append("llm_disabled")
         shortlists = embedder.shortlist_many(rest, catalog, synonyms)
         to_llm: dict[str, list[ColumnProfile]] = {}
         for p in rest:

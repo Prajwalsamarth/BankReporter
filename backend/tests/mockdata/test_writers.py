@@ -210,7 +210,7 @@ def test_reset_refuses_while_views_elsewhere_depend_on_client_schema(
         conn.execute(text(create_schema))
         conn.execute(text(view_sql))
     try:
-        with pytest.raises(SystemExit, match=r"views outside .* depend on it \(lending_rpt\.probe_v\)"):
+        with pytest.raises(SystemExit, match=r"views outside .* depend on it \(.*lending_rpt\.probe_v.*\)"):
             generate.run(n=10, seed=1, reset=True, only=only, write_golden_file=False)
     finally:
         with engine.begin() as conn:

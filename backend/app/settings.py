@@ -8,7 +8,7 @@ ROOT = Path(__file__).parents[2]
 
 class Settings(BaseSettings):
     """Environment configuration. Secrets are read here and nowhere else."""
-    model_config = SettingsConfigDict(extra="ignore")
+    model_config = SettingsConfigDict(extra="ignore", env_file=ROOT / ".env")
 
     secret_key: str | None = Field(None, validation_alias="BANKREPORTER_SECRET_KEY")
     db_path: Path = Field(ROOT / "data" / "bankreporter.sqlite", validation_alias="BANKREPORTER_DB")
