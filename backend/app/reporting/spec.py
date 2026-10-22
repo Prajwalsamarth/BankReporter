@@ -208,6 +208,8 @@ def validate_block(block, catalog, metrics) -> list[str]:
         case KpiRowBlock():
             for i, item in enumerate(block.items, start=1):
                 measure(item.measure, f"measure {i}")
+            if len({i.measure.key for i in block.items}) != len(block.items):
+                errs.append("the same measure is used twice")
             filters(block.filters)
         case KpiBlock():
             measure(block.measure, "measure 1")

@@ -1,5 +1,6 @@
 import { AppShell, Group, NavLink as MantineNavLink, Title } from "@mantine/core";
 import { Link, NavLink, Route, Routes } from "react-router-dom";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ConnectionsPage } from "./pages/ConnectionsPage";
 import { DashboardsPage } from "./pages/DashboardsPage";
 import { MappingPage } from "./pages/MappingPage";
@@ -22,6 +23,7 @@ export function App() {
         </Group>
       </AppShell.Header>
       <AppShell.Main>
+        <ErrorBoundary>
         <Routes>
           <Route path="/" element={<ConnectionsPage />} />
           <Route path="/connections/:id/mapping" element={<MappingPage />} />
@@ -31,6 +33,7 @@ export function App() {
           <Route path="/dashboards" element={<DashboardsPage />} />
           <Route path="/dashboards/:id" element={<DashboardsPage />} />
         </Routes>
+        </ErrorBoundary>
       </AppShell.Main>
     </AppShell>
   );

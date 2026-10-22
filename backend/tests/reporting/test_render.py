@@ -141,3 +141,18 @@ def test_check_published(conn):
     c.schema = "nope"
     with pytest.raises(NotPublished, match="NovaBank has no published views; publish its mapping first"):
         check_published(conn, c)
+
+
+def test_null_groups_sort_last_on_every_dialect(conn):
+    # Final review #3: NULLs sorted first on MySQL/SQLite but last on Postgres.
+    [r] = render(conn, {"id": "t", "type": "table", "query": {"measures": [{"metric": "applications"}],
+                                                              "group_by": ["rejection_reason"]}})
+    assert [row["rejection_reason"]["display"] for row in r["rows"]] == ["LOW_CIBIL", "—"]
+
+
+def test_measure_sort_ties_break_by_group_so_limits_are_deterministic(conn):
+    # WEB has 2 applications; DSA and BRANCH tie on 1. limit 2 must pick BRANCH (alphabetical) everywhere.
+    [r] = render(conn, {"id": "t", "type": "table", "query": {
+        "measures": [{"metric": "applications"}], "group_by": ["channel"],
+        "sort": {"by": "applications", "dir": "desc"}, "limit": 2}})
+    assert [row["channel"]["display"] for row in r["rows"]] == ["WEB", "BRANCH"]

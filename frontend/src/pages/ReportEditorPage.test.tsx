@@ -63,3 +63,40 @@ describe("ReportEditorPage", () => {
     expect(screen.queryByText("Discard unsaved changes?")).not.toBeInTheDocument();
   });
 });
+
+describe("ReportEditorPage after saving (final review #2)", () => {
+  it("shows the saved version when the template is reopened", async () => {
+    const { MantineProvider } = await import("@mantine/core");
+    const { QueryClient, QueryClientProvider } = await import("@tanstack/react-query");
+    const { render } = await import("@testing-library/react");
+    const { Link, MemoryRouter, Route, Routes } = await import("react-router-dom");
+    let server = { id: 1, name: "v1", description: "", updated_at: "", blocks: [] as unknown[] };
+    mockApi({
+      "GET /api/catalog": { sections: [], fields: FIELDS },
+      "GET /api/metrics": METRICS,
+      "GET /api/connections/published": [],
+      "GET /api/reports/1": () => server,
+      "PUT /api/reports/1": (_u: string, init?: RequestInit) => (server = { ...server, ...JSON.parse(String(init!.body)) }),
+    });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <MantineProvider><QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={["/reports/1/edit"]}>
+          <Routes>
+            <Route path="/reports/:id/edit" element={<ReportEditorPage />} />
+            <Route path="/reports" element={<Link to="/reports/1/edit">open again</Link>} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider></MantineProvider>,
+    );
+    const user = userEvent.setup();
+    const name = await screen.findByLabelText("Template name");
+    await user.clear(name);
+    await user.type(name, "v2");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await screen.findByText("Saved");
+    await user.click(screen.getByRole("button", { name: "Back to reports" }));
+    await user.click(await screen.findByRole("link", { name: "open again" }));
+    expect(await screen.findByLabelText("Template name")).toHaveValue("v2");
+  });
+});

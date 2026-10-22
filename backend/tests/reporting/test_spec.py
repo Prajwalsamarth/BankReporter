@@ -92,3 +92,10 @@ def test_check_blocks_collects_per_block_and_respects_allowed_types():
 def test_duplicate_block_ids_rejected():
     _, errs = check_blocks([chart(), chart()], CATALOG, METRICS)
     assert errs == [{"block_id": "c", "messages": ["duplicate block id"]}]
+
+
+def test_kpi_row_rejects_duplicate_measures():
+    # Final review #1: duplicate measures crash the editor's option lists and collide on result keys.
+    raw = {"id": "k", "type": "kpi_row", "items": [{"measure": {"metric": "applications"}},
+                                                    {"measure": {"metric": "applications"}}]}
+    assert "the same measure is used twice" in errors(raw)

@@ -23,6 +23,12 @@ const NULL_OPS = new Set(["is_null", "not_null"]);
 
 interface Common { fields: CatalogField[]; metrics: Metric[] }
 
+/** The first library metric not already used, so new measures never duplicate an existing one. */
+function unusedMetric(metrics: Metric[], used: Measure[]): string {
+  const taken = new Set(used.map((m) => m.metric));
+  return (metrics.find((m) => !taken.has(m.id)) ?? metrics[0]).id;
+}
+
 function defaultValue(f: CatalogField | undefined): unknown {
   if (!f) return "";
   if (f.type === "enum") return f.values?.[0] ?? "";
@@ -131,7 +137,8 @@ function QueryEditor({ query, onChange, fields, metrics, chart }: Common & {
   query: QuerySpec; onChange: (q: QuerySpec) => void; chart?: ChartType;
 }) {
   const set = (patch: Partial<QuerySpec>) => onChange({ ...query, ...patch });
-  const keys = [...query.measures.map((m) => m.metric ?? `${m.agg}_${m.field}`), ...query.group_by];
+  // De-duplicated: Mantine Select throws on duplicate option values, which would blank the whole page.
+  const keys = [...new Set([...query.measures.map((m) => m.metric ?? `${m.agg}_${m.field}`), ...query.group_by])];
   const dims = fields.filter((f) => f.role === "dimension");
   return (
     <Stack gap="sm">
@@ -148,7 +155,7 @@ function QueryEditor({ query, onChange, fields, metrics, chart }: Common & {
         </Group>
       ))}
       <Button size="xs" variant="light" w="fit-content" disabled={query.measures.length >= 4 || chart === "pie"}
-        onClick={() => set({ measures: [...query.measures, { metric: metrics[0].id }] })}>Add measure</Button>
+        onClick={() => set({ measures: [...query.measures, { metric: unusedMetric(metrics, query.measures) }] })}>Add measure</Button>
       <MultiSelect label="Group by" maxValues={2} searchable value={query.group_by}
         data={dims.map((f) => ({ value: f.id, label: f.label }))} onChange={(v) => set({ group_by: v })} />
       <FiltersEditor filters={query.filters} fields={fields} onChange={(f) => set({ filters: f })} />
@@ -198,7 +205,7 @@ export function BlockSettings({ block, onChange, fields, metrics }: Common & { b
             </Group>
           ))}
           <Button size="xs" variant="light" w="fit-content" disabled={items.length >= 6}
-            onClick={() => set({ items: [...items, { measure: { metric: metrics[0].id } }] })}>Add KPI</Button>
+            onClick={() => set({ items: [...items, { measure: { metric: unusedMetric(metrics, items.map((i) => i.measure)) } }] })}>Add KPI</Button>
           <FiltersEditor filters={block.filters ?? []} fields={fields} onChange={(f) => set({ filters: f })} />
         </Stack>
       );

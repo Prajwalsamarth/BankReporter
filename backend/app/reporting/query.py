@@ -2,7 +2,7 @@
 """Block query spec + period -> SQL over <schema>.applications (spec §5.1)."""
 from datetime import date
 
-from sqlalchemy import ColumnElement, Date, Select, and_, column, distinct, func, literal, select, table
+from sqlalchemy import ColumnElement, Date, Select, and_, case, column, distinct, func, literal, select, table
 
 from app.reporting.spec import Measure, QuerySpec
 
@@ -71,9 +71,13 @@ def grouped_select(q: QuerySpec, start: date, end: date, view, catalog, metrics)
     measures = {m.key: measure_expr(m, view, metrics).label(m.key) for m in q.measures}
     stmt = (select(*[g.label(g.name) for g in groups], *measures.values())
             .select_from(view).where(_where(start, end, q.filters, view, catalog)).group_by(*groups))
+    # NULL groups last and group-by tiebreakers, so every dialect returns the same rows under a limit
+    # (Postgres sorts NULLs last by default, MySQL and SQLite first; ties are otherwise unordered).
+    tiebreak = [x for g in groups for x in (case((g.is_(None), 1), else_=0), g.asc())]
     if q.sort:
         target = view.c[q.sort.by] if q.sort.by in q.group_by else measures[q.sort.by]
-        stmt = stmt.order_by(target.desc() if q.sort.dir == "desc" else target.asc())
+        nulls_last = case((target.is_(None), 1), else_=0)
+        stmt = stmt.order_by(nulls_last, target.desc() if q.sort.dir == "desc" else target.asc(), *tiebreak)
     else:
-        stmt = stmt.order_by(*groups)
+        stmt = stmt.order_by(*tiebreak)
     return stmt.limit(q.limit or DEFAULT_LIMIT)

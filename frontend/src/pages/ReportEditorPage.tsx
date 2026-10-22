@@ -59,6 +59,7 @@ export function ReportEditorPage() {
       setBlockErrors({});
       setMessage({ color: "teal", text: "Saved" });
       qc.invalidateQueries({ queryKey: ["reports"] });
+      qc.setQueryData(["report", String(t.id)], t);   // reopening the editor must show what was saved
       if (isNew) navigate(`/reports/${t.id}/edit`, { replace: true });
     },
     onError: (err) => {

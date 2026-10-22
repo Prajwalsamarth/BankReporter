@@ -53,3 +53,19 @@ describe("BlockSettings", () => {
     expect(onChange.mock.lastCall![0].items).toHaveLength(5);
   });
 });
+
+describe("BlockSettings regressions", () => {
+  it("adds a measure without duplicating one already used (final review #1)", async () => {
+    const onChange = vi.fn();
+    renderWithProviders(<Harness initial={chart} onChange={onChange} />);
+    await userEvent.setup().click(screen.getByRole("button", { name: "Add measure" }));
+    expect(onChange.mock.lastCall![0].query.measures).toEqual([{ metric: "applications" }, { metric: "approval_rate" }]);
+    expect(screen.getByRole("textbox", { name: "Sort by" })).toBeInTheDocument();
+  });
+
+  it("does not crash when the same metric is chosen twice", async () => {
+    const dup: Block = { ...chart, query: { ...chart.query!, measures: [{ metric: "applications" }, { metric: "applications" }] } };
+    renderWithProviders(<Harness initial={dup} onChange={vi.fn()} />);
+    expect(screen.getByRole("textbox", { name: "Sort by" })).toBeInTheDocument();
+  });
+});
