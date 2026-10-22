@@ -97,8 +97,32 @@ WHERE l.APPL_NO IN :ids
 
 @pytest.fixture(scope="module")
 def loaded(pg_engine, mysql_engine):
-    apps = generate.run(n=2000, seed=42, reset=True)
+    """Default data (n=2000, seed=42) in both clients plus the golden CSV.
+
+    Reuses what is already loaded when it matches, so views published by the app (which make
+    --reset refuse) don't break the suite.
+    """
+    apps = build_applications(2000, 42)
+    if not _default_data_loaded(pg_engine, mysql_engine):
+        generate.run(n=2000, seed=42, reset=True)
     return apps, {row["application_id"]: row for row in read_golden(generate.GOLDEN_PATH)}
+
+
+def _default_data_loaded(pg_engine, mysql_engine) -> bool:
+    if not generate.GOLDEN_PATH.exists():
+        return False
+    golden_ids = [row["application_id"] for row in read_golden(generate.GOLDEN_PATH)]
+    if golden_ids != [a["application_id"] for a in build_applications(2000, 42)]:
+        return False
+    for engine, sql in [(pg_engine, "SELECT COUNT(*) FROM los.loan_application"),
+                        (mysql_engine, "SELECT COUNT(*) FROM bfs_core.TBL_LOAN_APPL")]:
+        try:
+            with engine.connect() as conn:
+                if conn.execute(text(sql)).scalar_one() != 2000:
+                    return False
+        except Exception:
+            return False
+    return True
 
 
 def counts(engine, schema, tables):
