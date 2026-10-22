@@ -3,6 +3,13 @@
 A formula is a restricted Python expression over catalog field IDs (spec §4).
 """
 import ast
+from collections.abc import Callable
+
+from sqlalchemy import (
+    ColumnElement, Numeric, and_, case, cast, false, func, literal, not_, null, or_, true,
+)
+
+from app.catalog import dialect_funcs
 
 # name -> (min_args, max_args); max None = unbounded
 FUNCTIONS: dict[str, tuple[int, int | None]] = {
@@ -261,3 +268,90 @@ def result_literals(tree: ast.Expression) -> set[str]:
 
     visit(tree.body)
     return out
+
+
+# Explicit precision: MySQL's bare CAST(x AS DECIMAL) means DECIMAL(10,0) and would truncate.
+DIVISION_TYPE = Numeric(20, 6)
+
+
+def compile_formula(tree: ast.Expression,
+                    resolve: Callable[[str], ColumnElement]) -> ColumnElement:
+    """Compile a parsed formula into a dialect-neutral SQLAlchemy expression.
+
+    `resolve` maps a field ID to the column (or expression) that holds it.
+    """
+    return _compile(tree.body, resolve)
+
+
+def _compile(node: ast.AST, resolve) -> ColumnElement:
+    match node:
+        case ast.Name(id=name):
+            return resolve(name)
+        case ast.Constant(value=None):
+            return null()
+        case ast.Constant(value=True):
+            return true()
+        case ast.Constant(value=False):
+            return false()
+        case ast.Constant(value=value):
+            return literal(value)
+        case ast.BinOp(left=left, op=op, right=right):
+            lhs, rhs = _compile(left, resolve), _compile(right, resolve)
+            if isinstance(op, ast.Add):
+                return lhs + rhs
+            if isinstance(op, ast.Sub):
+                return lhs - rhs
+            if isinstance(op, ast.Mult):
+                return lhs * rhs
+            return cast(lhs, DIVISION_TYPE) / func.nullif(cast(rhs, DIVISION_TYPE), 0)
+        case ast.UnaryOp(op=ast.Not(), operand=operand):
+            return not_(_compile(operand, resolve))
+        case ast.UnaryOp(operand=operand):
+            return -_compile(operand, resolve)
+        case ast.BoolOp(op=op, values=values):
+            parts = [_compile(v, resolve) for v in values]
+            return and_(*parts) if isinstance(op, ast.And) else or_(*parts)
+        case ast.Compare(left=left, ops=[op], comparators=[right]):
+            return _compile_compare(_compile(left, resolve), op, right, resolve)
+        case ast.Call():
+            return _compile_call(node, resolve)
+    raise FormulaError(f"{type(node).__name__} not allowed", _col(node))
+
+
+def _compile_compare(lhs: ColumnElement, op: ast.cmpop, right: ast.AST, resolve) -> ColumnElement:
+    if isinstance(op, ast.Is):
+        return lhs.is_(None)
+    if isinstance(op, ast.IsNot):
+        return lhs.is_not(None)
+    if isinstance(op, ast.In):
+        return lhs.in_([e.value for e in right.elts])
+    rhs = _compile(right, resolve)
+    return {
+        ast.Eq: lhs == rhs, ast.NotEq: lhs != rhs,
+        ast.Lt: lhs < rhs, ast.LtE: lhs <= rhs,
+        ast.Gt: lhs > rhs, ast.GtE: lhs >= rhs,
+    }[type(op)]
+
+
+def _compile_call(node: ast.Call, resolve) -> ColumnElement:
+    name = node.func.id
+    args = [_compile(a, resolve) for a in node.args]
+    if name == "COALESCE":
+        return func.coalesce(*args)
+    if name == "NULLIF":
+        return func.nullif(*args)
+    if name == "ROUND":
+        # Postgres has round(numeric, int) but not round(double precision, int).
+        return func.round(cast(args[0], DIVISION_TYPE), node.args[1].value)
+    if name == "ABS":
+        return func.abs(args[0])
+    if name == "LEAST":
+        return dialect_funcs.Least(*args)
+    if name == "GREATEST":
+        return dialect_funcs.Greatest(*args)
+    if name == "IF":
+        return case((args[0], args[1]), else_=args[2])
+    if name == "CASE":
+        whens = list(zip(args[0:-1:2], args[1:-1:2]))
+        return case(*whens, else_=args[-1])
+    raise FormulaError(f"unknown function '{name}'", _col(node))
