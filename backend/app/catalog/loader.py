@@ -4,6 +4,9 @@ from pathlib import Path
 import yaml
 from pydantic import ValidationError
 
+from app.catalog.formula import (
+    FormulaError, infer_type, is_type_compatible, parse_formula, referenced_fields, result_literals,
+)
 from app.catalog.models import Catalog, Field, Section
 
 ID_RE = re.compile(r"^[a-z][a-z0-9_]*$")
@@ -44,6 +47,8 @@ def load_catalog(path: str | Path) -> Catalog:
         errors.extend(f"{fid}: {msg}" for msg in _field_rule_errors(field, section_ids))
         fields.append(field)
 
+    errors.extend(_formula_errors(fields))
+
     if errors:
         raise CatalogError(errors)
     return Catalog(version=raw["version"], sections=sections, fields=fields)
@@ -71,4 +76,50 @@ def _field_rule_errors(field: Field, section_ids: set[str]) -> list[str]:
             errors.append("calculated fields cannot be required_for_mapping")
     elif field.formula is not None:
         errors.append("raw fields must not have a 'formula'")
+    return errors
+
+
+def _formula_errors(fields: list[Field]) -> list[str]:
+    errors: list[str] = []
+    known = {f.id for f in fields}
+    types = {f.id: f.type for f in fields}
+    deps: dict[str, set[str]] = {}
+
+    for f in fields:
+        if f.kind != "calculated" or not f.formula:
+            continue
+        try:
+            tree = parse_formula(f.formula, known)
+            deps[f.id] = referenced_fields(tree)
+            inferred = infer_type(tree, types)
+        except FormulaError as exc:
+            errors.append(f"{f.id}: {exc}")
+            continue
+        if not is_type_compatible(inferred, f.type):
+            errors.append(f"{f.id}: formula returns {inferred} but field is declared {f.type}")
+        if f.type == "enum":
+            for value in sorted(result_literals(tree) - set(f.values or [])):
+                errors.append(f"{f.id}: formula can return '{value}' which is not in values")
+
+    errors.extend(_cycle_errors(deps))
+    return errors
+
+
+def _cycle_errors(deps: dict[str, set[str]]) -> list[str]:
+    errors: list[str] = []
+    done: set[str] = set()
+
+    def visit(node: str, path: list[str]) -> None:
+        if node in path:
+            cycle = path[path.index(node):] + [node]
+            errors.append(f"{cycle[0]}: formula cycle: {' -> '.join(cycle)}")
+            return
+        if node in done or node not in deps:
+            return
+        for dep in sorted(deps[node]):
+            visit(dep, path + [node])
+        done.add(node)
+
+    for node in sorted(deps):
+        visit(node, [])
     return errors

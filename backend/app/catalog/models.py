@@ -2,6 +2,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
+from app.catalog.formula import parse_formula, referenced_fields
+
 FieldType = Literal["string", "integer", "decimal", "date", "boolean", "enum"]
 Agg = Literal["sum", "avg", "min", "max", "count", "count_distinct"]
 
@@ -43,6 +45,28 @@ class Catalog(BaseModel):
             if f.id == field_id:
                 return f
         raise KeyError(field_id)
+
+    def calculation_order(self) -> list[str]:
+        """Calculated field IDs, each after the calculated fields it references.
+
+        Assumes a validated (acyclic) catalog.
+        """
+        calculated = {f.id: f for f in self.calculated_fields}
+        known = {f.id for f in self.fields}
+        order: list[str] = []
+
+        def visit(fid: str) -> None:
+            if fid in order:
+                return
+            tree = parse_formula(calculated[fid].formula, known)
+            for dep in sorted(referenced_fields(tree)):
+                if dep in calculated:
+                    visit(dep)
+            order.append(fid)
+
+        for fid in calculated:
+            visit(fid)
+        return order
 
     @property
     def raw_fields(self) -> list[Field]:

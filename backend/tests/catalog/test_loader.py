@@ -164,3 +164,79 @@ fields: []
     with pytest.raises(CatalogError) as exc:
         load_catalog(path)
     assert "section application: duplicate section id" in exc.value.errors
+
+
+RAW_INCOME = """
+    - {id: income, label: I, section: application, kind: raw, type: decimal, role: measure, default_agg: avg}
+    - {id: score, label: S, section: application, kind: raw, type: integer, role: measure, default_agg: avg}
+"""
+
+
+def test_formula_unknown_field_reported_with_field_id(tmp_path):
+    errors = load_errors(tmp_path, RAW_INCOME + """
+    - {id: c, label: C, section: application, kind: calculated, type: decimal, role: measure,
+       default_agg: avg, formula: "incom * 2"}
+    """)
+    assert "c: unknown field 'incom' (col 1)" in errors
+
+
+def test_formula_cycle_detected(tmp_path):
+    errors = load_errors(tmp_path, RAW_INCOME + """
+    - {id: c1, label: C1, section: application, kind: calculated, type: decimal, role: measure,
+       default_agg: avg, formula: "c2 + 1"}
+    - {id: c2, label: C2, section: application, kind: calculated, type: decimal, role: measure,
+       default_agg: avg, formula: "c1 + income"}
+    """)
+    assert any(e.startswith("c1: formula cycle") or e.startswith("c2: formula cycle") for e in errors)
+
+
+def test_self_reference_is_a_cycle(tmp_path):
+    errors = load_errors(tmp_path, RAW_INCOME + """
+    - {id: c, label: C, section: application, kind: calculated, type: integer, role: measure,
+       default_agg: avg, formula: "c + 1"}
+    """)
+    assert "c: formula cycle: c -> c" in errors
+
+
+def test_formula_type_mismatch(tmp_path):
+    errors = load_errors(tmp_path, RAW_INCOME + """
+    - {id: c, label: C, section: application, kind: calculated, type: integer, role: measure,
+       default_agg: avg, formula: "income / 2"}
+    """)
+    assert "c: formula returns decimal but field is declared integer" in errors
+
+
+def test_formula_type_error(tmp_path):
+    errors = load_errors(tmp_path, RAW_INCOME + """
+    - {id: c, label: C, section: application, kind: calculated, type: integer, role: measure,
+       default_agg: avg, formula: "MONTH_START(score)"}
+    """)
+    assert any(e.startswith("c: MONTH_START needs date arguments") for e in errors)
+
+
+def test_enum_formula_literals_must_be_declared_values(tmp_path):
+    errors = load_errors(tmp_path, RAW_INCOME + """
+    - {id: band, label: B, section: application, kind: calculated, type: enum, role: dimension,
+       values: [LOW, HIGH], formula: "IF(score < 700, 'LOW', 'MID')"}
+    """)
+    assert "band: formula can return 'MID' which is not in values" in errors
+
+
+def test_calculated_may_reference_calculated(tmp_path):
+    catalog = load_catalog(write_catalog(tmp_path, RAW_INCOME + """
+    - {id: annual, label: A, section: application, kind: calculated, type: decimal, role: measure,
+       default_agg: avg, formula: "income * 12"}
+    - {id: band, label: B, section: application, kind: calculated, type: enum, role: dimension,
+       values: [LOW, HIGH], formula: "IF(annual < 600000, 'LOW', 'HIGH')"}
+    """))
+    assert catalog.field("band").kind == "calculated"
+
+
+def test_calculation_order_puts_dependencies_first(tmp_path):
+    catalog = load_catalog(write_catalog(tmp_path, RAW_INCOME + """
+    - {id: band, label: B, section: application, kind: calculated, type: enum, role: dimension,
+       values: [LOW, HIGH], formula: "IF(annual < 600000, 'LOW', 'HIGH')"}
+    - {id: annual, label: A, section: application, kind: calculated, type: decimal, role: measure,
+       default_agg: avg, formula: "income * 12"}
+    """))
+    assert catalog.calculation_order() == ["annual", "band"]
