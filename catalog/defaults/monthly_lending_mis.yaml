@@ -1,0 +1,36 @@
+# catalog/defaults/monthly_lending_mis.yaml
+kind: report
+name: Monthly Lending MIS
+description: Monthly management information pack for personal-loan origination.
+blocks:
+  - {id: h1, type: heading, level: 1, text: "Personal Loans MIS — {{client_name}}"}
+  - id: t1
+    type: text
+    text: "Period: {{period}}. {{metric:applications}} applications were received; the approval rate was {{metric:approval_rate}} and {{metric:disbursed_amount_total}} was disbursed. Generated {{generated_at}}."
+  - id: k1
+    type: kpi_row
+    items:
+      - {measure: {metric: applications}}
+      - {measure: {metric: approval_rate}}
+      - {measure: {metric: disbursed_amount_total}}
+      - {measure: {metric: avg_ticket_size}}
+  - {id: c1, type: chart, chart: line, title: "Applications and approvals by month",
+     query: {measures: [{metric: applications}, {metric: approved}], group_by: [application_month]}}
+  - {id: c2, type: chart, chart: bar, title: "Approval rate by channel",
+     query: {measures: [{metric: approval_rate}], group_by: [channel]}}
+  - {id: tb1, type: table, title: "Rejection reasons", totals: true,
+     query: {measures: [{metric: rejected}], group_by: [rejection_reason],
+             filters: [[application_status, eq, REJECTED]], sort: {by: rejected, dir: desc}}}
+  - {id: c3, type: chart, chart: pie, title: "Applications by CIBIL band",
+     query: {measures: [{metric: applications}], group_by: [cibil_band]}}
+  - {id: h2, type: heading, level: 2, text: "Turnaround"}
+  - id: k2
+    type: kpi_row
+    items:
+      - {measure: {metric: avg_decision_tat}}
+      - {measure: {metric: avg_disbursement_tat}}
+      - {measure: {metric: avg_end_to_end_tat}}
+  - {id: pb1, type: page_break}
+  - {id: tb2, type: table, title: "Disbursals by state", totals: true,
+     query: {measures: [{metric: disbursed_count}, {metric: disbursed_amount_total}, {metric: avg_ticket_size}],
+             group_by: [state], filters: [[is_disbursed, eq, true]], sort: {by: disbursed_amount_total, dir: desc}}}

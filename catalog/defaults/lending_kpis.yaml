@@ -1,0 +1,27 @@
+# catalog/defaults/lending_kpis.yaml
+kind: dashboard
+name: Lending KPIs
+default_period: {preset: last_month}
+tiles:
+  - {id: t1, width: 3, height: m, block: {id: b1, type: kpi, measure: {metric: applications}}}
+  - {id: t2, width: 3, height: m, block: {id: b2, type: kpi, measure: {metric: approval_rate}}}
+  - {id: t3, width: 3, height: m, block: {id: b3, type: kpi, measure: {metric: disbursement_conversion}}}
+  - {id: t4, width: 3, height: m, block: {id: b4, type: kpi, measure: {metric: disbursed_amount_total}}}
+  - {id: t5, width: 3, height: m, block: {id: b5, type: kpi, measure: {metric: avg_ticket_size}}}
+  - {id: t6, width: 3, height: m, block: {id: b6, type: kpi, measure: {metric: avg_cibil}}}
+  - {id: t7, width: 3, height: m, block: {id: b7, type: kpi, measure: {metric: ntc_share}}}
+  - {id: t8, width: 3, height: m, block: {id: b8, type: kpi, measure: {metric: avg_end_to_end_tat}}}
+  - {id: t9, width: 8, height: l, block: {id: b9, type: chart, chart: line, title: "Applications vs approvals",
+                                          query: {measures: [{metric: applications}, {metric: approved}], group_by: [application_month]}}}
+  - {id: t10, width: 4, height: l, block: {id: b10, type: chart, chart: pie, title: "Rejection reasons",
+                                           query: {measures: [{metric: rejected}], group_by: [rejection_reason],
+                                                   filters: [[application_status, eq, REJECTED]]}}}
+  - {id: t11, width: 6, height: l, block: {id: b11, type: chart, chart: bar, title: "Disbursed amount by month",
+                                           query: {measures: [{metric: disbursed_amount_total}], group_by: [application_month]}}}
+  - {id: t12, width: 6, height: l, block: {id: b12, type: chart, chart: bar, title: "Approval rate by CIBIL band",
+                                           query: {measures: [{metric: approval_rate}], group_by: [cibil_band]}}}
+  - {id: t13, width: 6, height: l, block: {id: b13, type: chart, chart: stacked_bar, title: "Status by channel",
+                                           query: {measures: [{metric: applications}], group_by: [channel, application_status]}}}
+  - {id: t14, width: 6, height: l, block: {id: b14, type: table, title: "Top states by disbursed amount",
+                                           query: {measures: [{metric: disbursed_amount_total}, {metric: disbursed_count}],
+                                                   group_by: [state], sort: {by: disbursed_amount_total, dir: desc}, limit: 10}}}

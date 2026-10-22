@@ -81,6 +81,28 @@ class Publication(Base):
     run: Mapped[MappingRun] = relationship(back_populates="publications")
 
 
+class ReportTemplate(Base):
+    __tablename__ = "report_template"
+    __table_args__ = {"sqlite_autoincrement": True}
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(200), unique=True)
+    description: Mapped[str] = mapped_column(default="")
+    blocks: Mapped[list] = mapped_column(JSON, default=list)
+    created_at: Mapped[datetime] = mapped_column(default=_now)
+    updated_at: Mapped[datetime] = mapped_column(default=_now, onupdate=_now)
+
+
+class Dashboard(Base):
+    __tablename__ = "dashboard"
+    __table_args__ = {"sqlite_autoincrement": True}
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(200), unique=True)
+    default_period: Mapped[dict] = mapped_column(JSON, default=lambda: {"preset": "last_month"})
+    tiles: Mapped[list] = mapped_column(JSON, default=list)
+    created_at: Mapped[datetime] = mapped_column(default=_now)
+    updated_at: Mapped[datetime] = mapped_column(default=_now, onupdate=_now)
+
+
 class Store:
     def __init__(self, url: str):
         database = make_url(url).database
