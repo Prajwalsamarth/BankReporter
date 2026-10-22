@@ -1,0 +1,166 @@
+import textwrap
+
+import pytest
+
+from app.catalog.loader import CatalogError, load_catalog
+
+SECTIONS = """
+version: 1
+sections:
+  - id: application
+    label: Application
+fields:
+"""
+
+
+def write_catalog(tmp_path, fields_yaml: str):
+    path = tmp_path / "fields.yaml"
+    path.write_text(SECTIONS + textwrap.indent(textwrap.dedent(fields_yaml), "  "))
+    return path
+
+
+def load_errors(tmp_path, fields_yaml: str) -> list[str]:
+    with pytest.raises(CatalogError) as exc:
+        load_catalog(write_catalog(tmp_path, fields_yaml))
+    return exc.value.errors
+
+
+def test_valid_catalog_loads_with_defaults(tmp_path):
+    catalog = load_catalog(write_catalog(tmp_path, """
+        - id: application_id
+          label: Application ID
+          section: application
+          kind: raw
+          type: string
+          role: dimension
+          required_for_mapping: true
+        - id: requested_amount
+          label: Requested Amount
+          section: application
+          kind: raw
+          type: decimal
+          role: measure
+          default_agg: sum
+          unit: INR
+    """))
+    assert [f.id for f in catalog.fields] == ["application_id", "requested_amount"]
+    amount = catalog.field("requested_amount")
+    assert amount.nullable is True
+    assert amount.pii is False
+    assert amount.required_for_mapping is False
+    assert amount.synonyms == []
+    assert catalog.field("application_id").required_for_mapping is True
+
+
+def test_duplicate_field_id(tmp_path):
+    errors = load_errors(tmp_path, """
+        - {id: a, label: A, section: application, kind: raw, type: string, role: dimension}
+        - {id: a, label: A2, section: application, kind: raw, type: string, role: dimension}
+    """)
+    assert "a: duplicate field id" in errors
+
+
+def test_bad_id_format(tmp_path):
+    errors = load_errors(tmp_path, """
+        - {id: BadId, label: A, section: application, kind: raw, type: string, role: dimension}
+    """)
+    assert any(e.startswith("BadId: id must match") for e in errors)
+
+
+def test_unknown_section(tmp_path):
+    errors = load_errors(tmp_path, """
+        - {id: a, label: A, section: nope, kind: raw, type: string, role: dimension}
+    """)
+    assert "a: unknown section 'nope'" in errors
+
+
+def test_enum_requires_values(tmp_path):
+    errors = load_errors(tmp_path, """
+        - {id: a, label: A, section: application, kind: raw, type: enum, role: dimension}
+    """)
+    assert "a: enum fields need a non-empty 'values' list" in errors
+
+
+def test_values_only_on_enum(tmp_path):
+    errors = load_errors(tmp_path, """
+        - {id: a, label: A, section: application, kind: raw, type: string, role: dimension, values: [X]}
+    """)
+    assert "a: 'values' is only allowed on enum fields" in errors
+
+
+def test_measure_requires_default_agg(tmp_path):
+    errors = load_errors(tmp_path, """
+        - {id: a, label: A, section: application, kind: raw, type: integer, role: measure}
+    """)
+    assert "a: measures need 'default_agg'" in errors
+
+
+def test_dimension_rejects_default_agg(tmp_path):
+    errors = load_errors(tmp_path, """
+        - {id: a, label: A, section: application, kind: raw, type: string, role: dimension, default_agg: sum}
+    """)
+    assert "a: 'default_agg' is only allowed on measures" in errors
+
+
+def test_calculated_requires_formula(tmp_path):
+    errors = load_errors(tmp_path, """
+        - {id: a, label: A, section: application, kind: calculated, type: integer, role: dimension}
+    """)
+    assert "a: calculated fields need a 'formula'" in errors
+
+
+def test_raw_rejects_formula(tmp_path):
+    errors = load_errors(tmp_path, """
+        - {id: a, label: A, section: application, kind: raw, type: integer, role: dimension, formula: "1"}
+    """)
+    assert "a: raw fields must not have a 'formula'" in errors
+
+
+def test_calculated_cannot_be_required_for_mapping(tmp_path):
+    errors = load_errors(tmp_path, """
+        - {id: b, label: B, section: application, kind: raw, type: integer, role: dimension}
+        - {id: a, label: A, section: application, kind: calculated, type: integer, role: dimension,
+           formula: "b", required_for_mapping: true}
+    """)
+    assert "a: calculated fields cannot be required_for_mapping" in errors
+
+
+def test_invalid_enum_value_for_type_is_reported_with_field_id(tmp_path):
+    errors = load_errors(tmp_path, """
+        - {id: a, label: A, section: application, kind: raw, type: money, role: dimension}
+    """)
+    assert any(e.startswith("a: type:") for e in errors)
+
+
+def test_multiple_defects_reported_together(tmp_path):
+    errors = load_errors(tmp_path, """
+        - {id: a, label: A, section: nope, kind: raw, type: enum, role: dimension}
+        - {id: b, label: B, section: application, kind: raw, type: integer, role: measure}
+    """)
+    assert "a: unknown section 'nope'" in errors
+    assert "a: enum fields need a non-empty 'values' list" in errors
+    assert "b: measures need 'default_agg'" in errors
+
+
+def test_error_message_lists_all_errors(tmp_path):
+    with pytest.raises(CatalogError) as exc:
+        load_catalog(write_catalog(tmp_path, """
+            - {id: a, label: A, section: nope, kind: raw, type: string, role: dimension}
+            - {id: b, label: B, section: nope, kind: raw, type: string, role: dimension}
+        """))
+    assert "a: unknown section 'nope'" in str(exc.value)
+    assert "b: unknown section 'nope'" in str(exc.value)
+
+
+def test_duplicate_section_id(tmp_path):
+    path = tmp_path / "fields.yaml"
+    path.write_text("""
+version: 1
+sections:
+  - {id: application, label: A}
+  - {id: application, label: B}
+fields: []
+""")
+    with pytest.raises(CatalogError) as exc:
+        load_catalog(path)
+    assert "section application: duplicate section id" in exc.value.errors

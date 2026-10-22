@@ -1,0 +1,8 @@
+pyproject.toml
+app/__init__.py
+app/catalog/__init__.py
+bankreporter_backend.egg-info/PKG-INFO
+bankreporter_backend.egg-info/SOURCES.txt
+bankreporter_backend.egg-info/dependency_links.txt
+bankreporter_backend.egg-info/requires.txt
+bankreporter_backend.egg-info/top_level.txt
