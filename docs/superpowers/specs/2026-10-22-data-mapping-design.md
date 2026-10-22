@@ -164,8 +164,10 @@ A column is **decided by A** when all three of these hold:
 A's score is 1.0 and its reason is `"name matches synonym 'cib_scr'"`. A does no abbreviation expansion and no fuzzy matching.
 
 ### 4.3 Layer B: embedding shortlist
-- **Column text:**
-  `"column {COLUMN} in table {TABLE} ({expand(column)}). {type}{, range MIN–MAX}{, length A–B}{, pattern P}{, X% null}{, unique}"`
+- **Column text:** the expanded column name only, for example `"net monthly income"`.
+  - Measured on both clients with every synonym masked (116 non-key columns): the original text "column {COLUMN} in table {TABLE} ({expanded}). {type, range, length, pattern, null %, unique}" scored top-1 89/116 and top-5 110/116. The expanded name alone scored **111/116** and **116/116**.
+  - The statistics drown out the meaning for this small model, so they go to Layer C only.
+  - This layout was chosen on the evaluation clients themselves; the evaluation report lists it under threats to validity.
 - **`expand`** splits the normalised name on `_` and replaces each token found in `ABBREVIATIONS`. The list is fixed: about 70 generic Indian-lending abbreviations in `matcher/abbreviations.py`, for example `appl→application`, `dt→date`, `no→number`, `nm→name`, `cust→customer`, `amt→amount`, `req→requested`, `tnr→tenure`, `sts→status`, `chnl→channel`, `mth→monthly`, `inc→income`, `grs→gross`, `emplr→employer`, `cib→cibil`, `scr→score`, `os→outstanding`, `obl→obligation`, `dpd→days past due`, `enq→enquiries`, `wo→write off`, `bs→bank statement`, `amb→average monthly balance`, `bnc→bounce`, `sanc→sanctioned`, `roi→rate of interest`, `disb→disbursement`, `pf→processing fee`.
 - **Field text:**
   `"{label}. {description} Type {type}{, unit}. Also known as: {non-masked synonyms}."`
