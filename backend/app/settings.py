@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     llm_model: str = Field("gpt-4.1-mini", validation_alias=AliasChoices("MAPPER_LLM_MODEL"))
     b_accept: float = Field(0.85, validation_alias="MAPPER_B_ACCEPT")
     b_margin: float = Field(0.05, validation_alias="MAPPER_B_MARGIN")
+    publish_schema: str = Field("lending_rpt", validation_alias="BANKREPORTER_PUBLISH_SCHEMA")
     profile_row_limit: int = Field(50_000, validation_alias="MAPPER_PROFILE_ROW_LIMIT")
 
     @property

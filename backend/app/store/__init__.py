@@ -63,6 +63,7 @@ class MappingEntry(Base):
     warnings: Mapped[list] = mapped_column(JSON, default=list)
     candidates: Mapped[list] = mapped_column(JSON, default=list)
     status: Mapped[str] = mapped_column(String(16), default="unmapped")
+    suggestion: Mapped[dict] = mapped_column(JSON, default=dict)   # the matcher's original answer, for reset
     run: Mapped[MappingRun] = relationship(back_populates="entries")
 
 

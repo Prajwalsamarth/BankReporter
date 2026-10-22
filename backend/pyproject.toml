@@ -30,6 +30,13 @@ include = ["app*"]
 [tool.pytest.ini_options]
 pythonpath = [".", ".."]
 testpaths = ["tests"]
+filterwarnings = [
+  # third-party: starlette TestClient vs newer anyio
+  "ignore:The anyio.abc.BlockingPortal alias is deprecated:DeprecationWarning",
+  # FastAPI 0.115 re-creates response fields in a way Pydantic 2.14 flags; aliases still serialise
+  # correctly (tests/api/test_api.py::test_patch_response_uses_schema_key)
+  "ignore:The 'alias' attribute with value 'schema':UserWarning",
+]
 markers = [
   "db: needs docker compose databases (skipped if unreachable)",
   "embed: needs the local embedding model (downloaded on first use; skipped if unavailable)",
