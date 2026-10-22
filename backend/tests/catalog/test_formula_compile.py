@@ -113,3 +113,9 @@ def test_case(conn):
 def test_true_false_none_constants(conn):
     assert run(conn, "IF(True, 1, 0)") == [1, 1, 1]
     assert run(conn, "IF(False, 1, None)") == [None, None, None]
+
+
+def test_compare_with_boolean_constant(conn):
+    # Regression: comparisons were built eagerly, and `x < true()` raises in SQLAlchemy.
+    assert run(conn, "(i > 6) == True") == [1, 0, None]
+    assert run(conn, "(i > 6) != False") == [1, 0, None]

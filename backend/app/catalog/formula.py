@@ -3,6 +3,7 @@
 A formula is a restricted Python expression over catalog field IDs (spec §4).
 """
 import ast
+import operator
 from collections.abc import Callable
 
 from sqlalchemy import (
@@ -168,20 +169,22 @@ def _infer(node: ast.AST, types: dict[str, str]) -> str:
             if isinstance(op, ast.Div):
                 return "decimal"
             return _unify_numeric([lt, rt])
-        case ast.UnaryOp(op=ast.Not()):
-            _infer(node.operand, types)
+        case ast.UnaryOp(op=ast.Not(), operand=operand):
+            _boolean(operand, types, "'not' needs a boolean operand")
             return "boolean"
         case ast.UnaryOp(operand=operand):
             return _numeric(operand, types)
         case ast.BoolOp(values=values):
             for v in values:
-                _infer(v, types)
+                _boolean(v, types, "'and'/'or' need boolean operands")
             return "boolean"
-        case ast.Compare():
-            _infer(node.left, types)
-            for c in node.comparators:
-                if not isinstance(c, ast.List):
-                    _infer(c, types)
+        case ast.Compare(left=left, ops=[op], comparators=[right]):
+            lt = _infer(left, types)
+            if isinstance(op, ast.In):
+                for e in right.elts:
+                    _check_comparable(lt, _infer(e, types), e)
+            elif not isinstance(op, (ast.Is, ast.IsNot)):
+                _check_comparable(lt, _infer(right, types), node)
             return "boolean"
         case ast.Call():
             return _infer_call(node, types)
@@ -203,8 +206,29 @@ def _unify_numeric(ts: list[str]) -> str:
     return "null"
 
 
-def _first_non_null(ts: list[str]) -> str:
-    return next((t for t in ts if t != "null"), "null")
+def _boolean(node: ast.AST, types: dict[str, str], message: str) -> None:
+    t = _infer(node, types)
+    if t not in ("boolean", "null"):
+        raise FormulaError(f"{message}, got {t}", _col(node))
+
+
+def _check_comparable(lt: str, rt: str, node: ast.AST) -> None:
+    if "null" in (lt, rt) or lt == rt or {lt, rt} <= _NUMERIC:
+        return
+    raise FormulaError(f"cannot compare {lt} with {rt}", _col(node))
+
+
+def _unify(nodes: list[ast.AST], types: dict[str, str], what: str) -> str:
+    """Common type of alternative results; integer widens to decimal, null fits anything."""
+    ts = [t for t in (_infer(n, types) for n in nodes) if t != "null"]
+    if not ts:
+        return "null"
+    if set(ts) <= _NUMERIC:
+        return _unify_numeric(ts)
+    if len(set(ts)) > 1:
+        distinct = list(dict.fromkeys(ts))
+        raise FormulaError(f"{what} have incompatible types: {', '.join(distinct)}", _col(nodes[0]))
+    return ts[0]
 
 
 def _infer_call(node: ast.Call, types: dict[str, str]) -> str:
@@ -223,18 +247,19 @@ def _infer_call(node: ast.Call, types: dict[str, str]) -> str:
     if name in ("LEAST", "GREATEST"):
         return _unify_numeric([_numeric(a, types) for a in args])
     if name == "NULLIF":
-        _infer(args[1], types)
-        return _infer(args[0], types)
+        t = _infer(args[0], types)
+        _check_comparable(t, _infer(args[1], types), node)
+        return t
     if name == "COALESCE":
-        return _first_non_null([_infer(a, types) for a in args])
+        return _unify(args, types, "COALESCE arguments")
     if name == "IF":
-        _infer(args[0], types)
-        return _first_non_null([_infer(a, types) for a in args[1:]])
+        _boolean(args[0], types, "IF condition must be boolean")
+        return _unify(args[1:], types, "IF results")
     if name == "CASE":
         conds, results = _case_parts(args)
         for c in conds:
-            _infer(c, types)
-        return _first_non_null([_infer(r, types) for r in results])
+            _boolean(c, types, "CASE condition must be boolean")
+        return _unify(results, types, "CASE results")
     raise FormulaError(f"unknown function '{name}'", _col(node))
 
 
@@ -261,6 +286,10 @@ def result_literals(tree: ast.Expression) -> set[str]:
                 results = node.args[1:]
             elif node.func.id == "CASE":
                 results = _case_parts(node.args)[1]
+            elif node.func.id == "COALESCE":
+                results = node.args
+            elif node.func.id == "NULLIF":
+                results = node.args[:1]
             else:
                 return
             for r in results:
@@ -271,6 +300,7 @@ def result_literals(tree: ast.Expression) -> set[str]:
 
 
 # Explicit precision: MySQL's bare CAST(x AS DECIMAL) means DECIMAL(10,0) and would truncate.
+# Both operands are cast, so chained divisions (a / b / c) round intermediates to 6 places.
 DIVISION_TYPE = Numeric(20, 6)
 
 
@@ -318,6 +348,13 @@ def _compile(node: ast.AST, resolve) -> ColumnElement:
     raise FormulaError(f"{type(node).__name__} not allowed", _col(node))
 
 
+_COMPARE = {
+    ast.Eq: operator.eq, ast.NotEq: operator.ne,
+    ast.Lt: operator.lt, ast.LtE: operator.le,
+    ast.Gt: operator.gt, ast.GtE: operator.ge,
+}
+
+
 def _compile_compare(lhs: ColumnElement, op: ast.cmpop, right: ast.AST, resolve) -> ColumnElement:
     if isinstance(op, ast.Is):
         return lhs.is_(None)
@@ -325,12 +362,7 @@ def _compile_compare(lhs: ColumnElement, op: ast.cmpop, right: ast.AST, resolve)
         return lhs.is_not(None)
     if isinstance(op, ast.In):
         return lhs.in_([e.value for e in right.elts])
-    rhs = _compile(right, resolve)
-    return {
-        ast.Eq: lhs == rhs, ast.NotEq: lhs != rhs,
-        ast.Lt: lhs < rhs, ast.LtE: lhs <= rhs,
-        ast.Gt: lhs > rhs, ast.GtE: lhs >= rhs,
-    }[type(op)]
+    return _COMPARE[type(op)](lhs, _compile(right, resolve))
 
 
 def _compile_call(node: ast.Call, resolve) -> ColumnElement:

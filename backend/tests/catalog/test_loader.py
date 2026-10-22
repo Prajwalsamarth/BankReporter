@@ -240,3 +240,55 @@ def test_calculation_order_puts_dependencies_first(tmp_path):
        default_agg: avg, formula: "income * 12"}
     """))
     assert catalog.calculation_order() == ["annual", "band"]
+
+
+def write_raw(tmp_path, body: str):
+    path = tmp_path / "fields.yaml"
+    path.write_text(textwrap.dedent(body))
+    return path
+
+
+def errors_for(path) -> list[str]:
+    with pytest.raises(CatalogError) as exc:
+        load_catalog(path)
+    return exc.value.errors
+
+
+def test_section_id_format(tmp_path):
+    errors = errors_for(write_raw(tmp_path, """
+        version: 1
+        sections: [{id: Bad-Sec, label: B}]
+        fields: []
+    """))
+    assert any(e.startswith("section Bad-Sec: id must match") for e in errors)
+
+
+def test_invalid_section_is_collected_with_other_errors(tmp_path):
+    errors = errors_for(write_raw(tmp_path, """
+        version: 1
+        sections: [{id: application}]
+        fields:
+          - {id: a, label: A, section: application, kind: raw, type: enum, role: dimension}
+    """))
+    assert any(e.startswith("section application: label:") for e in errors)
+    assert "a: enum fields need a non-empty 'values' list" in errors
+
+
+def test_missing_version(tmp_path):
+    errors = errors_for(write_raw(tmp_path, """
+        sections: []
+        fields: []
+    """))
+    assert "catalog: 'version' must be an integer" in errors
+
+
+def test_top_level_must_be_mapping(tmp_path):
+    errors = errors_for(write_raw(tmp_path, "- just a list\n"))
+    assert errors == ["catalog: top level must be a mapping with version, sections, fields"]
+
+
+def test_duplicate_enum_values_message(tmp_path):
+    errors = load_errors(tmp_path, """
+        - {id: a, label: A, section: application, kind: raw, type: enum, role: dimension, values: [X, X]}
+    """)
+    assert "a: duplicate enum values" in errors

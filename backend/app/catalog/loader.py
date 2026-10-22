@@ -20,25 +20,38 @@ class CatalogError(Exception):
 
 def load_catalog(path: str | Path) -> Catalog:
     raw = yaml.safe_load(Path(path).read_text())
+    if not isinstance(raw, dict):
+        raise CatalogError(["catalog: top level must be a mapping with version, sections, fields"])
     errors: list[str] = []
+    version = raw.get("version")
+    if type(version) is not int:
+        errors.append("catalog: 'version' must be an integer")
 
-    sections = [Section.model_validate(s) for s in raw.get("sections", [])]
+    sections: list[Section] = []
     section_ids: set[str] = set()
-    for s in sections:
-        if s.id in section_ids:
-            errors.append(f"section {s.id}: duplicate section id")
-        section_ids.add(s.id)
+    for entry in raw.get("sections") or []:
+        sid = entry.get("id", "<missing id>") if isinstance(entry, dict) else "<invalid>"
+        try:
+            section = Section.model_validate(entry)
+        except ValidationError as exc:
+            errors.extend(f"section {sid}: {_loc(err)}: {err['msg']}" for err in exc.errors())
+            section_ids.add(sid)   # don't also report its fields as "unknown section"
+            continue
+        if section.id in section_ids:
+            errors.append(f"section {section.id}: duplicate section id")
+        if not ID_RE.match(section.id):
+            errors.append(f"section {section.id}: id must match {ID_RE.pattern}")
+        section_ids.add(section.id)
+        sections.append(section)
 
     fields: list[Field] = []
     seen: set[str] = set()
-    for entry in raw.get("fields", []):
-        fid = entry.get("id", "<missing id>")
+    for entry in raw.get("fields") or []:
+        fid = entry.get("id", "<missing id>") if isinstance(entry, dict) else "<invalid>"
         try:
             field = Field.model_validate(entry)
         except ValidationError as exc:
-            for err in exc.errors():
-                loc = ".".join(str(p) for p in err["loc"])
-                errors.append(f"{fid}: {loc}: {err['msg']}")
+            errors.extend(f"{fid}: {_loc(err)}: {err['msg']}" for err in exc.errors())
             continue
         if field.id in seen:
             errors.append(f"{fid}: duplicate field id")
@@ -51,7 +64,11 @@ def load_catalog(path: str | Path) -> Catalog:
 
     if errors:
         raise CatalogError(errors)
-    return Catalog(version=raw["version"], sections=sections, fields=fields)
+    return Catalog(version=version, sections=sections, fields=fields)
+
+
+def _loc(err: dict) -> str:
+    return ".".join(str(p) for p in err["loc"])
 
 
 def _field_rule_errors(field: Field, section_ids: set[str]) -> list[str]:
@@ -61,8 +78,10 @@ def _field_rule_errors(field: Field, section_ids: set[str]) -> list[str]:
     if field.section not in section_ids:
         errors.append(f"unknown section '{field.section}'")
     if field.type == "enum":
-        if not field.values or len(set(field.values)) != len(field.values):
+        if not field.values:
             errors.append("enum fields need a non-empty 'values' list")
+        elif len(set(field.values)) != len(field.values):
+            errors.append("duplicate enum values")
     elif field.values is not None:
         errors.append("'values' is only allowed on enum fields")
     if field.role == "measure" and field.default_agg is None:

@@ -88,3 +88,42 @@ def test_result_literals_collects_case_and_if_results():
 def test_result_literals_ignores_condition_strings():
     tree = parse_formula("IF(s == 'zz', 'A', None)", set(TYPES))
     assert result_literals(tree) == {"A"}
+
+
+@pytest.mark.parametrize("formula, msg", [
+    ("i == 'abc'", "cannot compare integer with string"),
+    ("d > 1", "cannot compare date with integer"),
+    ("flag == 1", "cannot compare boolean with integer"),
+    ("i in ['A']", "cannot compare integer with string"),
+    ("not i", "'not' needs a boolean operand, got integer"),
+    ("i and flag", "'and'/'or' need boolean operands, got integer"),
+    ("IF(i, 1, 0)", "IF condition must be boolean, got integer"),
+    ("CASE(s, 1, 0)", "CASE condition must be boolean, got string"),
+    ("CASE(i > 1, 1, 'x')", "CASE results have incompatible types: integer, string"),
+    ("IF(flag, d, 1)", "IF results have incompatible types: date, integer"),
+    ("COALESCE(i, 'x')", "COALESCE arguments have incompatible types: integer, string"),
+])
+def test_operand_type_errors(formula, msg):
+    with pytest.raises(FormulaError) as exc:
+        infer(formula)
+    assert msg in str(exc.value)
+
+
+@pytest.mark.parametrize("formula, expected", [
+    ("i == x", "boolean"),
+    ("e == 'A'", "boolean"),
+    ("s == e", "boolean"),
+    ("i in [1, 2]", "boolean"),
+    ("flag == True", "boolean"),
+    ("IF(flag, i, x)", "decimal"),
+    ("CASE(flag, 1, 2.5)", "decimal"),
+    ("COALESCE(i, x)", "decimal"),
+    ("IF(flag, None, None)", "null"),
+])
+def test_compatible_mixes(formula, expected):
+    assert infer(formula) == expected
+
+
+def test_result_literals_follow_coalesce_and_nested_calls():
+    tree = parse_formula("COALESCE(IF(flag, 'A', NULLIF(s, 'Z')), 'B')", set(TYPES))
+    assert result_literals(tree) == {"A", "B"}
