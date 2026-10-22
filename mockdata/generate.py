@@ -34,6 +34,10 @@ def run(n: int = 2000, seed: int = 42, reset: bool = False, only: str | None = N
             writer = WRITERS[name]
             if writer.is_populated(engine) and not reset:
                 raise SystemExit(f"{name} schema '{writer.SCHEMA}' not empty; rerun with --reset")
+            views = writer.views_depending_on_schema(engine)
+            if views:
+                raise SystemExit(f"{name}: views outside '{writer.SCHEMA}' depend on it ({', '.join(views)});"
+                                 " drop them before reloading")
         for name, engine in engines.items():
             WRITERS[name].write(engine, apps)
             print(f"{name}: loaded {len(apps)} applications into '{WRITERS[name].SCHEMA}'")

@@ -1,7 +1,7 @@
 """Client 2 "Bharat Finserv" (MySQL, database bfs_core): wide legacy tables, no FKs."""
 from sqlalchemy import Engine, text
 
-from mockdata.writers import DDL_DIR, TableSpec, has_tables, run_ddl, write_tables
+from mockdata.writers import DDL_DIR, TableSpec, dependent_views, has_tables, run_ddl, write_tables
 
 SCHEMA = "bfs_core"
 DDL_PATH = DDL_DIR / "client2_mysql.sql"
@@ -42,6 +42,11 @@ TABLES = [
 
 def is_populated(engine: Engine) -> bool:
     return has_tables(engine, SCHEMA)
+
+
+def views_depending_on_schema(engine: Engine) -> list[str]:
+    """MySQL's DROP DATABASE would leave such views broken, so callers must check first."""
+    return dependent_views(engine, SCHEMA)
 
 
 def write(engine: Engine, applications: list[dict]) -> None:

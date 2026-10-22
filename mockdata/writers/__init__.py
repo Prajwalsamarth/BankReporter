@@ -42,6 +42,15 @@ def write_tables(conn: Connection, schema: str, specs: list[TableSpec], apps: li
             conn.execute(insert(table), rows[i:i + BATCH])
 
 
+def dependent_views(engine: Engine, schema: str) -> list[str]:
+    """Views in other schemas that read from `schema` (e.g. Part 2's lending_rpt views)."""
+    sql = text(
+        "SELECT DISTINCT view_schema, view_name FROM information_schema.view_table_usage "
+        "WHERE table_schema = :schema AND view_schema <> :schema ORDER BY 1, 2")
+    with engine.connect() as conn:
+        return [f"{vs}.{vn}" for vs, vn in conn.execute(sql, {"schema": schema})]
+
+
 def has_tables(engine: Engine, schema: str) -> bool:
     insp = inspect(engine)
     return schema in insp.get_schema_names() and bool(insp.get_table_names(schema=schema))

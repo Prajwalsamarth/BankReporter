@@ -128,3 +128,16 @@ def test_city_state_and_pincode_agree(apps):
         state, prefix = lookup[a["city"]]
         assert a["state"] == state
         assert a["pincode"].startswith(prefix)
+
+
+def test_repeat_customers_apply_exactly_twice(apps):
+    per_customer = Counter(a["customer_id"] for a in apps)
+    assert max(per_customer.values()) == 2
+
+
+def test_check_invariants_catches_bureau_pull_after_decision(apps):
+    decided = next(a for a in apps if a["decision_date"] is not None)
+    from datetime import timedelta
+    broken = dict(decided, bureau_pull_date=decided["decision_date"] + timedelta(days=1))
+    with pytest.raises(AssertionError, match="bureau pulled after decision"):
+        check_invariants([broken])

@@ -1,7 +1,7 @@
 """Client 1 "NovaBank" (Postgres, schema los): normalised, FKs declared."""
 from sqlalchemy import Engine, text
 
-from mockdata.writers import DDL_DIR, TableSpec, has_tables, run_ddl, write_tables
+from mockdata.writers import DDL_DIR, TableSpec, dependent_views, has_tables, run_ddl, write_tables
 
 SCHEMA = "los"
 DDL_PATH = DDL_DIR / "client1_postgres.sql"
@@ -61,9 +61,18 @@ def is_populated(engine: Engine) -> bool:
     return has_tables(engine, SCHEMA)
 
 
+def views_depending_on_schema(engine: Engine) -> list[str]:
+    return dependent_views(engine, SCHEMA)
+
+
 def write(engine: Engine, applications: list[dict]) -> None:
-    """Drop and recreate schema `los`, then load the applications (one transaction)."""
+    """Drop and recreate schema `los`, then load the applications (one transaction).
+
+    No CASCADE: Postgres refuses rather than silently dropping views in other schemas.
+    """
     with engine.begin() as conn:
-        conn.execute(text(f"DROP SCHEMA IF EXISTS {SCHEMA} CASCADE"))
+        for spec in reversed(TABLES):
+            conn.execute(text(f"DROP TABLE IF EXISTS {SCHEMA}.{spec.name}"))
+        conn.execute(text(f"DROP SCHEMA IF EXISTS {SCHEMA}"))
         run_ddl(conn, DDL_PATH)
         write_tables(conn, SCHEMA, TABLES, applications)

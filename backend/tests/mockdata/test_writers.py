@@ -170,3 +170,24 @@ def test_generator_refuses_data_that_breaks_invariants(monkeypatch):
     monkeypatch.setattr(generate, "build_applications", broken)
     with pytest.raises(AssertionError, match="undecided application has decision_date"):
         generate.run(n=10, seed=1, reset=True, only="client1", write_golden_file=False)
+
+
+@pytest.mark.db
+@pytest.mark.parametrize("only, engine_fixture, create_schema, view_sql", [
+    ("client1", "pg_engine", "CREATE SCHEMA IF NOT EXISTS lending_rpt",
+     "CREATE VIEW lending_rpt.probe_v AS SELECT application_id FROM los.loan_application"),
+    ("client2", "mysql_engine", "CREATE DATABASE IF NOT EXISTS lending_rpt",
+     "CREATE VIEW lending_rpt.probe_v AS SELECT APPL_NO FROM bfs_core.TBL_LOAN_APPL"),
+])
+def test_reset_refuses_while_views_elsewhere_depend_on_client_schema(
+        loaded, request, only, engine_fixture, create_schema, view_sql):
+    engine = request.getfixturevalue(engine_fixture)
+    with engine.begin() as conn:
+        conn.execute(text(create_schema))
+        conn.execute(text(view_sql))
+    try:
+        with pytest.raises(SystemExit, match=r"views outside .* depend on it \(lending_rpt\.probe_v\)"):
+            generate.run(n=10, seed=1, reset=True, only=only, write_golden_file=False)
+    finally:
+        with engine.begin() as conn:
+            conn.execute(text("DROP VIEW lending_rpt.probe_v"))

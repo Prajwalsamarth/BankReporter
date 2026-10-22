@@ -12,7 +12,7 @@ from app.catalog.expressions import calculated_expressions
 from app.catalog.loader import load_catalog
 
 CATALOG_PATH = Path(__file__).parents[3] / "catalog" / "fields.yaml"
-SQL_TYPES = {"string": String, "enum": String, "integer": Integer,
+SQL_TYPES = {"string": lambda: String(120), "enum": lambda: String(40), "integer": Integer,
              "decimal": lambda: Numeric(14, 2), "date": Date, "boolean": Boolean}
 
 
@@ -152,3 +152,37 @@ def test_zero_income_gives_null_ratios(evaluate):
                   "requested_amount": Decimal("1000")})
     assert r["foir_pct"] is None
     assert r["loan_to_income_ratio"] is None
+
+
+def _normalise(value):
+    if value is None or isinstance(value, str):
+        return value
+    if isinstance(value, (bool, int)):
+        return int(value)
+    if isinstance(value, (Decimal, float)):
+        return round(float(value), 4)
+    return str(value)[:10]   # date / datetime
+
+
+@pytest.mark.db
+@pytest.mark.parametrize("engine_fixture", ["pg_engine", "mysql_engine"])
+@pytest.mark.parametrize("row", [DISBURSED_APP, {}], ids=["disbursed", "all_null"])
+def test_catalog_formulas_as_view_sql_match_sqlite(catalog, evaluate, request, engine_fixture, row):
+    """Formulas rendered with literal_binds (as view DDL will be) agree across dialects."""
+    engine = request.getfixturevalue(engine_fixture)
+    metadata = MetaData()
+    table = Table("calc_probe", metadata, Column("_row", Integer, primary_key=True),
+                  *[Column(f.id, SQL_TYPES[f.type]()) for f in catalog.raw_fields],
+                  prefixes=["TEMPORARY"])
+    exprs = calculated_expressions(catalog, lambda fid: table.c[fid])
+    stmt = select(*[e.label(k) for k, e in exprs.items()]).select_from(table)
+    sql = str(stmt.compile(dialect=engine.dialect, compile_kwargs={"literal_binds": True}))
+
+    with engine.connect() as conn:
+        metadata.create_all(conn)
+        conn.execute(insert(table), [{"_row": 1, **row}])
+        actual = dict(conn.exec_driver_sql(sql).mappings().one())
+        conn.rollback()
+
+    expected = evaluate(row)
+    assert {k: _normalise(v) for k, v in actual.items()} == {k: _normalise(v) for k, v in expected.items()}

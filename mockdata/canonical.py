@@ -71,14 +71,16 @@ def build_applications(n: int, seed: int) -> list[dict]:
 
     span = (END_DATE - START_DATE).days
     dates = sorted(START_DATE + timedelta(days=rng.randint(0, span)) for _ in range(n))
-    customers: list[dict] = []
+    single_applicants: list[dict] = []   # customers who may still apply a second (last) time
+    n_customers = 0
     apps = []
     for i, app_date in enumerate(dates, start=1):
-        if customers and rng.random() < 0.05:
-            customer = rng.choice(customers)
+        if single_applicants and rng.random() < 0.05:
+            customer = single_applicants.pop(rng.randrange(len(single_applicants)))
         else:
-            customer = _new_customer(rng, fake, len(customers) + 1, app_date)
-            customers.append(customer)
+            n_customers += 1
+            customer = _new_customer(rng, fake, n_customers, app_date)
+            single_applicants.append(customer)
         apps.append(_application(rng, fake, f"APP{i:07d}", app_date, customer))
     return apps
 
@@ -200,7 +202,7 @@ def _kyc(rng: random.Random, a: dict, status: str) -> None:
 
 def _decide(rng: random.Random, a: dict) -> str:
     """Apply the rejection rules in order; returns the final status."""
-    after = a["kyc_verified_date"] or a["application_date"]
+    after = max(a["kyc_verified_date"] or a["application_date"], a["bureau_pull_date"])
     a["decision_date"] = after + timedelta(days=rng.randint(0, 7))
     a["decision_mode"] = "AUTO" if rng.random() < 0.6 else "MANUAL"
 
@@ -258,6 +260,8 @@ def _violations(a: dict) -> list[str]:
         out.append("dates out of order (application <= kyc <= decision <= disbursement)")
     if a["bureau_pull_date"] < a["application_date"]:
         out.append("bureau pulled before application")
+    if a["decision_date"] is not None and a["bureau_pull_date"] > a["decision_date"]:
+        out.append("bureau pulled after decision")
 
     if status in UNDECIDED:
         out += [f"undecided application has {f}" for f in DECISION_FIELDS + DISBURSEMENT_FIELDS

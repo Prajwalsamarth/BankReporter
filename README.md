@@ -32,6 +32,7 @@ Options:
 - `--n` and `--seed` control the volume and the random seed.
 - `--only client1|client2` loads one client.
 - Without `--reset`, it refuses to overwrite a schema that already has data.
+- It also refuses while views in another schema read from the client schema (for example Part 2's `lending_rpt` views), because reloading would drop or break them.
 - `CLIENT1_URL` and `CLIENT2_URL` override the connection URLs.
 
 ## Tests
