@@ -1,0 +1,29 @@
+# Mock client databases for the BankReporter POC.
+# Non-default host ports avoid clashing with locally installed databases.
+services:
+  client1:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: novabank
+      POSTGRES_PASSWORD: novabank
+      POSTGRES_DB: novabank
+    ports: ["5433:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U novabank"]
+      interval: 2s
+      retries: 30
+
+  client2:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpw
+      MYSQL_DATABASE: bfs_core
+      MYSQL_USER: bfs
+      MYSQL_PASSWORD: bfs
+    ports: ["3307:3306"]
+    volumes:
+      - ./docker/mysql-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -prootpw --silent"]
+      interval: 2s
+      retries: 60

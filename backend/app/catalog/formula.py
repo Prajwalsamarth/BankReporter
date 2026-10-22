@@ -349,6 +349,12 @@ def _compile_call(node: ast.Call, resolve) -> ColumnElement:
         return dialect_funcs.Least(*args)
     if name == "GREATEST":
         return dialect_funcs.Greatest(*args)
+    if name == "DATE_DIFF_DAYS":
+        return dialect_funcs.DateDiffDays(*args)
+    if name == "YEARS_BETWEEN":
+        return dialect_funcs.YearsBetween(*args)
+    if name == "MONTH_START":
+        return dialect_funcs.MonthStart(*args)
     if name == "IF":
         return case((args[0], args[1]), else_=args[2])
     if name == "CASE":
