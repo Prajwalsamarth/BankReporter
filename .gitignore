@@ -1,0 +1,7 @@
+mockdata/golden/
+.venv/
+__pycache__/
+*.pyc
+*.sqlite
+.pytest_cache/
+node_modules/
